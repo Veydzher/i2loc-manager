@@ -354,6 +354,7 @@ class LanguageManager(QDialog):
 
         self.edit_name.textEdited.connect(self.update_selected_language)
         self.edit_code.textEdited.connect(self.update_selected_language)
+        self.edit_flag.textActivated.connect(self.update_selected_language)
         self.edit_native_checkbox.released.connect(self.update_selected_language)
 
     def update_status(self):

@@ -419,6 +419,8 @@ class I2ManagerUI(QMainWindow):
 
                 if reply == QMessageBox.StandardButton.Yes:
                     self.save_dump_file()
+                    if self.manager.content != self.manager.backup:
+                        return
                 elif reply == QMessageBox.StandardButton.Cancel:
                     return
 

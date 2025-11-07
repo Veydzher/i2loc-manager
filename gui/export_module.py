@@ -137,7 +137,7 @@ class ExportModule:
 
     def export_selected_languages(self, filepath, delimiter, terms, selected_languages):
         try:
-            with open(filepath, "w+", newline="", encoding="utf-8") as f:
+            with open(filepath, "w+", encoding="utf-8", newline="") as f:
                 langs = [f"{name} [{code}]" if code != name.lower() else name for code, name in selected_languages.items()]
                 fields = ["Key", "Type", "Desc"] + langs
                 writer = csv.DictWriter(f, fieldnames=fields, delimiter=delimiter)

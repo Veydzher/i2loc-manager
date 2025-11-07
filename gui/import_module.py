@@ -49,7 +49,7 @@ class ImportModule:
 
         try:
             delimiter = FS[FE(file_ext).name].value
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8", newline="") as f:
                 reader = csv.reader(f, delimiter=delimiter)
                 headers = next(reader, [])
 
@@ -73,10 +73,13 @@ class ImportModule:
                     return
 
                 csv_data = []
-                with open(file_path, "r", encoding="utf-8") as f:
-                    reader = csv.DictReader(f)
+                with open(file_path, "r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f, delimiter=delimiter)
                     for row in reader:
-                        new_row = dict(row.items())
+                        new_row = {
+                            k: (v.replace("\r\n", "\n").replace("\r", "\n") if v else v)
+                            for k, v in row.items()
+                        }
                         csv_data.append(new_row)
 
                 model = self.mw.custom_table.table_model
@@ -117,7 +120,8 @@ class ImportModule:
                             col_index = next((i for i, (_, key) in enumerate(model.columns) if key == col_key), -1)
                             if col_index != -1:
                                 index = model.index(row_index, col_index)
-                                if col_value.strip() and model.data(index, Qt.ItemDataRole.DisplayRole) != col_value:
+                                model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
+                                if col_value and model_data != col_value:
                                     model.setData(index, col_value, Qt.ItemDataRole.EditRole)
                                     updated_count += 1
                         elif col_header in lang_mapping:
@@ -126,13 +130,16 @@ class ImportModule:
                             if col_index != -1:
                                 index = model.index(row_index, col_index)
                                 model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                                if col_value.strip() and model_data != col_value:
+                                if col_value and model_data != col_value:
                                     model.setData(index, col_value, Qt.ItemDataRole.EditRole)
                                     updated_count += 1
 
                 progress.setValue(len(csv_data))
 
-                self.mw.message_box("information", ("info-success-import", {"count": updated_count}))
+                if updated_count:
+                    self.mw.message_box("information", ("info-success-import", {"count": updated_count}))
+                else:
+                    self.mw.message_box("information", "import-no-imported")
         except Exception as e:
             self.mw.message_box("error", ("error-import-file", {"error": str(e)}))
             return

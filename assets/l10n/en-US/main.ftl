@@ -144,13 +144,14 @@ error-missing-headers = The file is missing required columns: {$headers}.
 error-no-langauges-columns = The file does not contain any language columns.
 error-no-available-model = No table model available.
 error-import-file = Failed to import file: {$error}.
-info-success-import = Successfully imported strings.
+info-success-import = Successfully imported translations.
 
     Updated {$count ->
-        [one] {$count} string
-        *[other] {$count} strings
+        [one] {$count} translation
+        *[other] {$count} translations
     }.
 
+import-no-imported = No new translations to import.
 
 ## Manage languages module
 
