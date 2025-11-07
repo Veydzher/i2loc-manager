@@ -55,8 +55,9 @@ class AppConfig:
             self.save_recent_files()
 
     def clear_recent_files(self):
-        self.recent = {"files": []}
-        self.save_recent_files()
+        if self.recent.get("files", []):
+            self.recent = {"files": []}
+            self.save_recent_files()
 
     def save_recent_files(self):
         with open(self.recent_path, "w", encoding="utf-8") as f:

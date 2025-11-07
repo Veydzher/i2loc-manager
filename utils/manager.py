@@ -1,7 +1,7 @@
 import os
 import re
-import copy
 import json
+from copy import deepcopy
 from utils.exceptions import ParsingTxtError
 from utils.enums import (
     FileExts as FE,
@@ -64,7 +64,7 @@ class I2Manager:
                     languages.append(item)
 
             case _:
-                languages = copy.deepcopy(content_langs)
+                languages = deepcopy(content_langs)
 
         return languages
 
@@ -127,7 +127,7 @@ class I2Manager:
             self.filename = name
             self.filepath = path
             self.content = output_content
-            self.backup = copy.deepcopy(self.content)
+            self.backup = deepcopy(self.content)
             return True
         except (OSError, KeyError, MemoryError, PermissionError) as e:
             return str(e)
@@ -143,10 +143,10 @@ class I2Manager:
         }
 
         structure_patterns = {
-            "m_GameObject": (int, r"PPtr<GameObject>\s+m_GameObject\s+.*int m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
-            "m_Enabled": (int, r"UInt8\s+m_Enabled\s*=\s*(\d+)"),
-            "m_Script": (int, r"PPtr<MonoScript>\s+m_Script\s+.*int\s+m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
-            "m_Name": (str, r"string\s+m_Name\s*=\s*\"(.*)\"")
+            "m_GameObject": (int, None, r"PPtr<GameObject>\s+m_GameObject\s+.*int m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
+            "m_Enabled": (int, bool, r"UInt8\s+m_Enabled\s*=\s*(\d+)"),
+            "m_Script": (int, None, r"PPtr<MonoScript>\s+m_Script\s+.*int\s+m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
+            "m_Name": (str, None, r"string\s+m_Name\s*=\s*\"(.*)\"")
         }
 
         patterns = {
@@ -186,15 +186,15 @@ class I2Manager:
             "GoogleUpdateDelay": (float, None)
         }
 
-        for key, (type_, pattern) in structure_patterns.items():
+        for key, (key_type, value_type, pattern) in structure_patterns.items():
             fs_match = re.search(pattern, dump_content)
             if fs_match:
                 if len(fs_match.groups()) == 1:
-                    fs_result = type_(fs_match.group(1))
+                    fs_result = value_type(key_type(fs_match.group(1))) if value_type else key_type(fs_match.group(1))
                 else:
                     fs_result = {
-                        "m_FileID": type_(fs_match.group(1)),
-                        "m_PathID": type_(fs_match.group(2))
+                        "m_FileID": key_type(fs_match.group(1)),
+                        "m_PathID": key_type(fs_match.group(2))
                     }
 
                 result["structure"][key] = fs_result
@@ -274,7 +274,7 @@ class I2Manager:
             else:
                 value = r"\"(.*)\""
 
-            pattern = r"{0}\s*=\s*{1}".format(key, value)
+            pattern = fr"{key}\s*=\s*{value}"
             match = re.search(pattern, dump_content)
             if match:
                 parsed_value = key_type(match.group(1))
@@ -311,7 +311,7 @@ class I2Manager:
             output.append(f"  0 int m_FileID = {game_object['m_FileID']}")
             output.append(f"  0 SInt64 m_PathID = {game_object['m_PathID']}")
 
-            output.append(f" 1 int m_Enabled = {structure['m_Enabled']}")
+            output.append(f" 1 UInt8 m_Enabled = {int(structure['m_Enabled'])}")
 
             script = structure["m_Script"]
             output.append(" 0 PPtr<MonoScript> m_Script")
@@ -405,7 +405,7 @@ class I2Manager:
                     output.append(f"      0 int m_FileID = {asset['m_FileID']}")
                     output.append(f"      0 SInt64 m_PathID = {asset['m_PathID']}")
 
-            self.backup = copy.deepcopy(self.content)
+            self.backup = deepcopy(self.content)
             return "\n".join(output) + "\n"
         except Exception as e:
             raise e from e
@@ -578,7 +578,7 @@ class I2Manager:
 
             insert_metadata(metadata, parse_metadata[6:], m_source)
 
-            self.backup = copy.deepcopy(self.content)
+            self.backup = deepcopy(self.content)
             return json.dumps(output, ensure_ascii=False, indent=2)
         except Exception as e:
             return str(e)
