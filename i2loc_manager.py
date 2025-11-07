@@ -73,7 +73,7 @@ class I2ManagerUI(QMainWindow):
         edit_menu = menu_bar.addMenu(self.ftr("edit-menu-title"))
 
         refresh_table = QAction(self.ftr("refresh-table-button"), self)
-        refresh_table.setToolTip(self.ftr("refresh-table-tooltip"))
+        refresh_table.setStatusTip(self.ftr("refresh-table-tooltip"))
         refresh_table.triggered.connect(self.update_table)
         refresh_table.setShortcut("Ctrl+R")
 

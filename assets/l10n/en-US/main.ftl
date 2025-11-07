@@ -9,7 +9,7 @@ close-button = Close
 cancel-button = Cancel
 all-languages = All Languages
 term-count-label = Total Terms: {$count}
-report-dev = Please post this error with "Languages_Touch Array" title and attach the file you were trying to use in {$link} tab.
+report-dev = Please attach the file you were trying to open and post this error in {$link} tab.
 
 
 ## About popup
