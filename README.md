@@ -6,7 +6,7 @@ A lightweight tool for managing [I2 Localization](http://inter-illusion.com/tool
 
 - Support for `.txt` and `.json` [UABEA](https://github.com/nesrak1/UABEA) dump files (`.json` files load faster)
 - Conversion between `.txt` and `.json`
-- Export and Import to/from `CSV` or `TSV` formats
+- Support for import and export of `CSV` and `TSV` files.
 - Modify language details directly using `Tools -> Language Manager`
 
 ## Planned Features
