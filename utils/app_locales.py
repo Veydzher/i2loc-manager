@@ -1,17 +1,18 @@
 import os
 import threading
+from typing import Any
 from pathlib import Path
 from functools import lru_cache
 from fluent.syntax import FluentParser, ast
 from fluent.runtime import FluentLocalization, FluentResourceLoader
+from utils.app_config import config
 from utils.helpers import pathfind
 
 class AppLocale:
-    def __init__(self, mw, locale_dir=Path(pathfind("assets\\l10n")), default_locale="en-US", cache_size=512):
-        self.default_locale = default_locale
-        self.app_config = mw.config
-        self.locale_dir = locale_dir
-        self.cache_size = cache_size
+    def __init__(self):
+        self.default_locale = "en-US"
+        self.locale_dir = Path(pathfind("assets\\l10n"))
+        self.cache_size = 512
 
         self._cache_lock = threading.RLock()
         self._translation_cache = {}
@@ -28,17 +29,17 @@ class AppLocale:
 
         self._localizer_cache = {}
         self.loader = FluentResourceLoader(str(self.locale_dir / "{locale}"))
-        self.current_locale = self.app_config.get_config("language", self.default_locale)
+        self.current_locale = config.get_config("language") or self.default_locale
 
         if self.current_locale not in self.available_locales:
             print(f"[Locale] Warning: Locale '{self.current_locale}' not found, falling back to '{self.default_locale}' locale.")
             self.current_locale = self.default_locale
-            self.app_config.set_config("language", self.current_locale)
+            config.set_config("language", self.current_locale)
 
         self.get_localizer(self.current_locale)
         self._setup_translation_cache()
 
-    def change_locale(self, new_locale):
+    def change_locale(self, new_locale: str):
         if new_locale != self.current_locale:
             self.current_locale = new_locale
         else:
@@ -50,11 +51,11 @@ class AppLocale:
 
         self._cached_translate.cache_clear()
         self.get_localizer(self.current_locale)
-        self.app_config.set_config("language", self.current_locale)
+        config.set_config("language", self.current_locale)
 
     def _setup_translation_cache(self):
         @lru_cache(maxsize=self.cache_size)
-        def _cached_translate(locale, msg_id, args_tuple):
+        def _cached_translate(locale: str, msg_id: str, args_tuple: tuple):
             localizer = self.get_localizer(locale)
             try:
                 args_dict = dict(args_tuple) if args_tuple else {}
@@ -75,7 +76,7 @@ class AppLocale:
 
         self._cached_translate = _cached_translate
 
-    def _get_cache_key(self, locale, msg_id, args):
+    def _get_cache_key(self, locale: str, msg_id: str, args: dict[str, Any] | None):
         cache_key = ""
         if args:
             args_str = "&".join(f"{k}={v}" for k, v in sorted(args.items()))
@@ -85,7 +86,7 @@ class AppLocale:
 
         return cache_key
 
-    def get_localizer(self, locale):
+    def get_localizer(self, locale: str):
         if locale not in self._localizer_cache:
             cache_key = f"resources:{locale}"
 
@@ -107,7 +108,7 @@ class AppLocale:
 
         return self._localizer_cache[locale]
 
-    def get_ftl_files(self, locale):
+    def get_ftl_files(self, locale: str):
         locale_dir = self.locale_dir / locale
 
         if not locale_dir.exists():
@@ -118,7 +119,7 @@ class AppLocale:
         print(f"[Locale] Found .ftl files for {locale}: {ftl_files}.")
         return ftl_files
 
-    def tr(self, msg_id, args = None):
+    def tr(self, msg_id: str, args: dict[str, Any] | None = None):
         if not args:
             cache_key = f"{self.current_locale}:{msg_id}"
 
@@ -135,7 +136,7 @@ class AppLocale:
 
         return result
 
-    def tr_batch(self, texts):
+    def tr_batch(self, texts: list[str | tuple[str, dict[str, Any]]]):
         results = {}
         cache_misses = []
 
@@ -190,3 +191,6 @@ class AppLocale:
             raise Exception(f"[Locale] {str(e)}") from e
 
         return languages
+
+fluent = AppLocale()
+ftr = fluent.tr

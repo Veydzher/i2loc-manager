@@ -1,23 +1,30 @@
 import os
 import sys
+from typing import Any
+from PySide6.QtCore import QThread
 from PySide6.QtGui import QIcon, QAction, QCloseEvent
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QMenu, QMessageBox, QVBoxLayout,
-    QFileDialog, QLabel, QHBoxLayout, QWidget, QStyleFactory, QDialogButtonBox
+    QFileDialog, QLabel, QHBoxLayout, QWidget, QStyleFactory
 )
 
-from utils.app_config import AppConfig
-from utils.app_locales import AppLocale
-from utils.enums import FileExts as FE
-from utils.exceptions import InvalidExtensionError
-from utils.manager import I2Manager
+from utils.manager import manager
 from utils.helpers import pathfind
+from utils.app_config import config
+from utils.app_locales import fluent, ftr
+from utils.enums import FileExtension as FE
 
 from gui.about_dialog import About
 from gui.custom_table import CustomTable
 from gui.export_module import ExportModule
 from gui.import_module import ImportModule
 from gui.langs_manage import LanguageManager
+from gui.helpers import (
+    FileWorker,
+    message_box,
+    report,
+    set_window_size
+)
 
 class I2ManagerUI(QMainWindow):
     def __init__(self):
@@ -25,13 +32,7 @@ class I2ManagerUI(QMainWindow):
         self.setMinimumSize(800, 600)
         self.setWindowTitle("I2 Localization Manager")
         self.setWindowIcon(QIcon(pathfind("assets\\icon.ico")))
-        self._set_window_size()
-
-        self.config = AppConfig(self)
-        self.fluent = AppLocale(self)
-        self.manager = I2Manager(self)
-        self.ftr = self.fluent.tr
-        self.config_actions = []
+        set_window_size(self)
 
         self.central_widget = QWidget()
         self.main_layout = QVBoxLayout()
@@ -44,25 +45,27 @@ class I2ManagerUI(QMainWindow):
         menu_bar = self.menuBar()
 
         # ====== File Menu ====== #
-        file_menu = menu_bar.addMenu(self.ftr("file-menu-title"))
+        file_menu = menu_bar.addMenu(ftr("file-menu-title"))
 
-        open_file = QAction(self.ftr("open-button"), self)
-        open_file.setStatusTip(self.ftr("open-tooltip"))
+        open_file = QAction(ftr("open-button"), self)
+        open_file.setStatusTip(ftr("open-tooltip"))
         open_file.triggered.connect(self._open_file_dialog)
         open_file.setShortcut("Ctrl+O")
 
-        save_file = QAction(self.ftr("save-button"), self)
-        save_file.setStatusTip(self.ftr("save-tooltip"))
+        recent_menu = self.setup_recent_menu()
+
+        save_file = QAction(ftr("save-button"), self)
+        save_file.setStatusTip(ftr("save-tooltip"))
         save_file.triggered.connect(self.save_dump_file)
         save_file.setShortcut("Ctrl+S")
 
-        exit_app = QAction(self.ftr("exit-app-button"), self)
-        exit_app.setStatusTip(self.ftr("exit-app-tooltip"))
+        exit_app = QAction(ftr("exit-app-button"), self)
+        exit_app.setStatusTip(ftr("exit-app-tooltip"))
         exit_app.triggered.connect(self.close)
         exit_app.setShortcut("Alt+F4")
 
         file_menu.addAction(open_file)
-        file_menu.addMenu(self.setup_recent_menu())
+        file_menu.addMenu(recent_menu)
         file_menu.addActions([
             save_file,
             file_menu.addSeparator(),
@@ -70,10 +73,10 @@ class I2ManagerUI(QMainWindow):
         ])
 
         # ====== Edit Menu ====== #
-        edit_menu = menu_bar.addMenu(self.ftr("edit-menu-title"))
+        edit_menu = menu_bar.addMenu(ftr("edit-menu-title"))
 
-        refresh_table = QAction(self.ftr("refresh-table-button"), self)
-        refresh_table.setStatusTip(self.ftr("refresh-table-tooltip"))
+        refresh_table = QAction(ftr("refresh-table-button"), self)
+        refresh_table.setStatusTip(ftr("refresh-table-tooltip"))
         refresh_table.triggered.connect(self.update_table)
         refresh_table.setShortcut("Ctrl+R")
 
@@ -85,18 +88,18 @@ class I2ManagerUI(QMainWindow):
         edit_menu.addMenu(self.setup_language_menu())
 
         # ====== Tool Menu ====== #
-        tool_menu = menu_bar.addMenu(self.ftr("tools-menu-title"))
+        tool_menu = menu_bar.addMenu(ftr("tools-menu-title"))
 
-        export_translations = QAction(self.ftr("export-translations-button"), self)
-        export_translations.setStatusTip(self.ftr("export-translations-tooltip"))
+        export_translations = QAction(ftr("export-translations-button"), self)
+        export_translations.setStatusTip(ftr("export-translations-tooltip"))
         export_translations.triggered.connect(lambda: ExportModule(self))
 
-        import_translations = QAction(self.ftr("import-translations-button"), self)
-        import_translations.setStatusTip(self.ftr("import-translations-tooltip"))
+        import_translations = QAction(ftr("import-translations-button"), self)
+        import_translations.setStatusTip(ftr("import-translations-tooltip"))
         import_translations.triggered.connect(lambda: ImportModule(self))
 
-        manage_langs = QAction(self.ftr("manage-languages-button"), self)
-        manage_langs.setStatusTip(self.ftr("manage-languages-tooltip"))
+        manage_langs = QAction(ftr("manage-languages-button"), self)
+        manage_langs.setStatusTip(ftr("manage-languages-tooltip"))
         manage_langs.triggered.connect(lambda: LanguageManager(self))
 
         tool_menu.addActions([
@@ -106,9 +109,11 @@ class I2ManagerUI(QMainWindow):
         ])
 
         # ====== About Action ====== #
-        menu_bar.addAction(self.ftr("about-app"), self._open_about_dialog)
+        menu_bar.addAction(ftr("about-app"), self._open_about_dialog)
 
         self.config_actions = [
+            open_file,
+            recent_menu,
             save_file,
             refresh_table,
             export_translations,
@@ -118,13 +123,13 @@ class I2ManagerUI(QMainWindow):
 
     def setup_recent_menu(self):
         max_count = 8
-        recent_menu = QMenu(self.ftr("open-recent-menu"), self)
+        recent_menu = QMenu(ftr("open-recent-menu"), self)
 
-        recent_files = self.config.get_recent_files()
+        recent_files = config.get_recent_files()
         if recent_files:
             for file in recent_files[:max_count]:
                 action = QAction(file, self)
-                action.setStatusTip(self.ftr("open-recent-tooltip", {"filename": os.path.basename(file)}))
+                action.setStatusTip(ftr("open-recent-tooltip", {"file_name": os.path.basename(file)}))
                 action.triggered.connect(
                     lambda checked=False, path=file:
                         self.open_dump_file(path)
@@ -132,19 +137,19 @@ class I2ManagerUI(QMainWindow):
                 recent_menu.addAction(action)
             recent_menu.addSeparator()
 
-        clear_recent_button = QAction(self.ftr("clear-recent-button"), self)
-        clear_recent_button.setStatusTip(self.ftr("clear-recent-tooltip"))
-        clear_recent_button.triggered.connect(lambda: (self.config.clear_recent_files(), self._refresh_ui()))
+        clear_recent_button = QAction(ftr("clear-recent-button"), self)
+        clear_recent_button.setStatusTip(ftr("clear-recent-tooltip"))
+        clear_recent_button.triggered.connect(lambda: (config.clear_recent_files(), self._refresh_ui()))
         recent_menu.addAction(clear_recent_button)
 
         return recent_menu
 
     def setup_theme_menu(self):
         themes = QStyleFactory.keys()
-        current_theme = self.config.get_config("theme", "Fusion")
+        current_theme = config.get_config("theme", "Fusion")
 
-        theme_menu = QMenu(self.ftr("theme-menu"), self)
-        theme_menu.setToolTip(self.ftr("theme-menu-tooltip"))
+        theme_menu = QMenu(ftr("theme-menu"), self)
+        theme_menu.setToolTip(ftr("theme-menu-tooltip"))
 
         for theme in themes:
             action = QAction(theme, self)
@@ -158,7 +163,7 @@ class I2ManagerUI(QMainWindow):
                 action.setChecked(False)
                 action.triggered.connect(
                     lambda checked=False, theme=theme:
-                        (self.config.set_config("theme", theme), self._refresh_ui())
+                        (config.set_config("theme", theme), self._refresh_ui())
                 )
 
             theme_menu.addAction(action)
@@ -166,10 +171,10 @@ class I2ManagerUI(QMainWindow):
         return theme_menu
 
     def setup_language_menu(self):
-        language_menu = QMenu(self.ftr("app-language-menu"), self)
+        language_menu = QMenu(ftr("app-language-menu"), self)
 
-        current_locale = self.fluent.current_locale
-        available_locales = self.fluent.get_languages()
+        current_locale = fluent.current_locale
+        available_locales = fluent.get_languages()
 
         for locale_code, locale_name in available_locales.items():
             action = QAction(locale_name, language_menu)
@@ -182,15 +187,15 @@ class I2ManagerUI(QMainWindow):
                 action.setChecked(False)
                 action.triggered.connect(
                     lambda checked=False, loc=locale_code:
-                        (self.fluent.change_locale(loc), self._refresh_ui())
+                        (fluent.change_locale(loc), self._refresh_ui())
                 )
 
             language_menu.addAction(action)
 
         return language_menu
 
-    def configure_menu(self, value):
-        for action in self.config_actions:
+    def configure_menu(self, value: bool):
+        for action in self.config_actions[2:]:
             action.setEnabled(value)
 
     def setup_table_controls(self):
@@ -198,7 +203,7 @@ class I2ManagerUI(QMainWindow):
 
         self.lang_selector = QComboBox()
         self.lang_selector.setFixedSize(200, 25)
-        self.lang_selector.currentIndexChanged.connect(self.update_table)
+        self.lang_selector.textActivated.connect(self.update_table)
 
         self.term_count = QLabel()
 
@@ -212,14 +217,11 @@ class I2ManagerUI(QMainWindow):
 
     def update_lang_selector(self):
         prev_item = self.lang_selector.currentText()
-
-        self.lang_selector.currentIndexChanged.disconnect(self.update_table)
         self.lang_selector.clear()
-        self.lang_selector.currentIndexChanged.connect(self.update_table)
 
-        languages = self.manager.get_languages("displayed")
+        languages = manager.get_displayed_languages()
         if languages:
-            self.lang_selector.addItem(self.ftr("all-languages"))
+            self.lang_selector.addItem(ftr("all-languages"))
             self.lang_selector.addItems(languages)
 
             items = []
@@ -231,120 +233,101 @@ class I2ManagerUI(QMainWindow):
             else:
                 self.lang_selector.setCurrentIndex(0)
 
+        self.update_table()
         self.term_count.setText(
-            self.ftr("term-count-label", {"count": self.manager.term_count()})
+            ftr("term-count-label", {"count": manager.term_count()})
         )
 
     def update_table(self):
-        if not self.manager.content:
-            self.message_box("warning", "warning-no-file")
+        if not manager.content:
+            message_box(self, "warning", "warning-no-file")
             return
 
         if self.lang_selector.currentIndex() != -1:
-            terms = self.manager.content.get("terms", [])
+            terms = manager.content.get("terms", [])
 
             selected_index = self.lang_selector.currentIndex()
             selected_text = self.lang_selector.currentText()
 
             if not selected_text:
-                self.message_box("warning", "warning-no-language-selected")
+                message_box(self, "warning", "warning-no-language-selected")
                 return
 
             if selected_index == 0:
                 lang_subset = {
-                    d["code"]: d["name"]
-                    for d in self.manager.get_languages()
+                    lang["code"]: lang["name"]
+                    for lang in manager.get_languages()
                 }
             else:
-                code, name = self.manager.get_language_from_text(selected_text)
+                code, name = manager.get_language_by_index(selected_index-1)
                 lang_subset = {code: name}
 
             self.custom_table.update_table(self, terms, lang_subset)
 
-    def open_dump_file(self, path):
-        if not os.path.isfile(path):
-            self.message_box("warning", ("warning-file-not-found", {"file_path": path}))
+    def open_dump_file(self, path: str):
+        file_path = os.path.abspath(path)
+
+        if not os.path.isfile(file_path):
+            message_box(self, "warning", ("warning-file-not-found", {"file_path": file_path}))
+            if file_path in config.get_recent_files():
+                config.remove_recent_file(file_path)
+                self._refresh_ui()
             return
 
-        file_path = os.path.abspath(path)
-        self.status_bar_message(("opening-file", {"file_path": file_path}))
-        result = self.manager.process_dump_file(file_path)
+        self.temp_thread = QThread()
+        self.worker = FileWorker(file_path)
+        self.worker.moveToThread(self.temp_thread)
 
-        if result is True:
-            self.config.add_recent_file(file_path)
-            self.status_bar_message(
-                ("opened-file", {"file_path": file_path}),
-                15000
-            )
-            self.configure_menu(True)
-            self.update_lang_selector()
-        else:
-            self.status_bar_message()
-            self.message_box("error", result)
+        self.temp_thread.started.connect(self.worker.open)
+        self.worker.finished.connect(self._on_opened_dump_file)
+        self.worker.finished.connect(self.temp_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.temp_thread.finished.connect(self.temp_thread.deleteLater)
+
+        self.status_bar_message(("opening-file", {"file_path": file_path}))
+        self.config_actions[0].setDisabled(True)
+        self.config_actions[1].setDisabled(True)
+        self.temp_thread.start()
 
     def save_dump_file(self):
-        if not self.manager.content:
-            self.message_box("warning", "warning-no-file")
+        if not manager.content:
+            message_box(self, "warning", "warning-no-file")
             return
 
         extensions = "{} (*{});; {} (*{})"
-        import_type = self.manager.content["structure"]["import"]
+        import_type = manager.content["structure"]["import"]
 
-        if import_type == FE.TXT.name:
+        if import_type is FE.TXT:
             extensions = extensions.format(
-                self.ftr("text-file"), FE.TXT.value,
-                self.ftr("json-file"), FE.JSON.value
+                ftr("text-file"), FE.TXT.value,
+                ftr("json-file"), FE.JSON.value
             )
-        elif import_type == FE.JSON.name:
+        elif import_type is FE.JSON:
             extensions = extensions.format(
-                self.ftr("json-file"), FE.JSON.value,
-                self.ftr("text-file"), FE.TXT.value
+                ftr("json-file"), FE.JSON.value,
+                ftr("text-file"), FE.TXT.value
             )
         else:
-            self.message_box("error", ("error-unknown-import-type", {"type": import_type}))
+            message_box(self, "error", ("error-unknown-import-type", {"type": import_type}))
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, self.ftr("save-title"),
-            f"{self.manager.filename}_dump", extensions
+        path, _ = QFileDialog.getSaveFileName(
+            self, ftr("save-title"), f"{manager.filename}_dump", extensions
         )
 
-        if not file_path:
+        if not path:
             return
 
-        try:
-            file_path = os.path.abspath(file_path)
-            extension = os.path.splitext(file_path)[1].lower()
-
-            with open(file_path, "w+", encoding="utf-8") as f:
-                if extension == FE.TXT.value:
-                    output = self.manager.build_txt_dump()
-                elif extension == FE.JSON.value:
-                    output = self.manager.build_json_dump()
-                else:
-                    raise InvalidExtensionError
-
-                f.write(output)
-
+        file_path = os.path.abspath(path)
+        self.status_bar_message(("saving-file", {"file_path": file_path}))
+        result = manager.save_dump_file(file_path)
+        if result is True:
             self.status_bar_message(("saved-file", {"file_path": file_path}))
-        except (FileNotFoundError, PermissionError) as e:
-            self.message_box("error", ("error-file-access", {"error": str(e)}))
-        except TypeError as e:
-            self.message_box("error", ("error-invalid-data", {"error": str(e)}))
-        except OSError as e:
-            self.message_box("error", ("error-save-failed", {"error": str(e)}))
-        except InvalidExtensionError:
-            self.message_box("error", "error-invalid-extension")
+        else:
+            message_box(self, "error", result)
 
-    def report(self, error_text):
-        issues_link = '<a href="https://github.com/Veydzher/i2loc-manager/issues">Issues</a>'
-        QMessageBox.critical(
-            self, self.ftr("error-title"),
-            f"{error_text}.\n{self.ftr('report-dev', {'link': issues_link})}",
-        )
-
-    def status_bar_message(self, text: str | tuple = "", timeout: int = 0):
-        if not text:
+    def status_bar_message(self, text: str | tuple[str, dict[str, Any]] | None = None, timeout: int = 0):
+        if text is None:
             return self.statusBar().clearMessage()
 
         if isinstance(text, tuple):
@@ -352,90 +335,59 @@ class I2ManagerUI(QMainWindow):
         else:
             args = None
 
-        return self.statusBar().showMessage(self.ftr(text, args), timeout)
-
-    def message_box(self, kind, text, *args, localize = True):
-        if isinstance(text, tuple):
-            text, var_dict = text
-        else:
-            var_dict = None
-
-        title = self.ftr(f"{kind}-title")
-        message = self.ftr(text, var_dict) if localize else text
-
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle(title)
-        msg_box.setText(message)
-
-        match kind:
-            case "error":
-                msg_box.setIcon(QMessageBox.Icon.Critical)
-            case "information":
-                msg_box.setIcon(QMessageBox.Icon.Information)
-            case "question":
-                msg_box.setIcon(QMessageBox.Icon.Question)
-            case "warning":
-                msg_box.setIcon(QMessageBox.Icon.Warning)
-            case _:
-                msg_box.setIcon(QMessageBox.Icon.Information)
-
-        if args:
-            msg_box.setStandardButtons(args[0])
-            if len(args) > 1:
-                msg_box.setDefaultButton(args[1])
-
-            self.localise_buttons(msg_box)
-
-        return msg_box.exec()
-
-    def localise_buttons(self, box:QMessageBox | QDialogButtonBox):
-        # Implement custom buttons localise names (e.g. import-button for Ok button)
-        for button in box.buttons():
-            button_type = type(box)
-
-            match box.standardButton(button):
-                case button_type.StandardButton.Ok:
-                    button.setText(self.ftr("ok-button"))
-                case button_type.StandardButton.Cancel:
-                    button.setText(self.ftr("cancel-button"))
-                case button_type.StandardButton.Yes:
-                    button.setText(self.ftr("yes-button"))
-                case button_type.StandardButton.No:
-                    button.setText(self.ftr("no-button"))
-                case button_type.StandardButton.Close:
-                    button.setText(self.ftr("close-button"))
+        return self.statusBar().showMessage(ftr(text, args), timeout)
 
     def closeEvent(self, event: QCloseEvent):
-        if self.manager.content:
-            if self.manager.content != self.manager.backup:
-                event.ignore()
-                reply = self.message_box(
-                    "question", "question-save-file",
+        if not manager.content:
+            event.accept()
+
+        if manager.is_modified():
+            event.ignore()
+            reply = message_box(
+                self, "question", "question-save-file",
+                standard_buttons=(
                     QMessageBox.StandardButton.Yes
                     | QMessageBox.StandardButton.No
                     | QMessageBox.StandardButton.Cancel,
                     QMessageBox.StandardButton.Yes
+                    )
                 )
 
-                if reply == QMessageBox.StandardButton.Yes:
-                    self.save_dump_file()
-                    if self.manager.content != self.manager.backup:
-                        return
-                elif reply == QMessageBox.StandardButton.Cancel:
+            if reply == QMessageBox.StandardButton.Yes:
+                self.save_dump_file()
+                if manager.is_modified():
                     return
-
+            elif reply == QMessageBox.StandardButton.Cancel:
+                return
+        
         event.accept()
 
     def _open_file_dialog(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, self.ftr("open-title"), "",
-            f"{self.ftr('dump-file')} (*{FE.TXT.value}; *{FE.JSON.value})"
+            self, ftr("open-title"), "",
+            f"{ftr('dump-file')} (*{FE.TXT.value}; *{FE.JSON.value})"
         )
 
         if not path:
             return
 
         self.open_dump_file(path)
+
+    def _on_opened_dump_file(self, file_path: str, result: Any):
+        if result is True:
+            config.add_recent_file(file_path)
+            self.status_bar_message(
+                ("opened-file", {"file_path": file_path}), 15000
+            )
+            self.configure_menu(True)
+            self.update_lang_selector()
+        else:
+            self.status_bar_message()
+            message_box(self, "error", result)
+
+        self.config_actions[0].setEnabled(True)
+        self.config_actions[1].setEnabled(True)
+        self._refresh_ui()
 
     def _open_about_dialog(self):
         self.about_dialog = About(self)
@@ -450,41 +402,22 @@ class I2ManagerUI(QMainWindow):
             self.statusBar()
             self.setup_table_controls()
 
-        if self.manager.content:
+        if manager.content:
             self.configure_menu(True)
             self.update_lang_selector()
         else:
             self.configure_menu(False)
 
-    def _set_theme_mode(self, theme):
+    def _set_theme_mode(self, theme: str):
         try:
             application.setStyle(theme)
         except Exception as e:
             print("[ERROR]", str(e))
             application.setStyle("Fusion")
-            self.config.set_config("theme", "Fusion")
+            config.set_config("theme", "Fusion")
 
         if theme == "Fusion":
-            self.setStyleSheet("combobox-popup: 0;")
-        else:
-            self.setStyleSheet("")
-
-    def _set_window_size(self):
-        screen = QApplication.primaryScreen()
-        geometry = screen.availableGeometry()
-        screen_width = geometry.width()
-        screen_height = geometry.height()
-
-        width = int(screen_width * 0.7)
-        height = int(screen_height * 0.7)
-
-        width = max(width, self.minimumWidth())
-        height = max(height, self.minimumHeight())
-
-        x = (screen_width - width) // 2
-        y = (screen_height - height) // 2
-
-        self.setGeometry(x, y, width, height)
+            application.setStyleSheet("QComboBox { combobox-popup: 0; }")
 
 if __name__ == "__main__":
     try:
@@ -493,4 +426,4 @@ if __name__ == "__main__":
         window.show()
         sys.exit(application.exec())
     except Exception as e:
-        I2ManagerUI().report(str(e))
+        report(str(e))

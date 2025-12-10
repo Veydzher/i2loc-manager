@@ -7,14 +7,15 @@ from PySide6.QtWidgets import (
     QTableView, QSizePolicy, QAbstractScrollArea, QHeaderView, QAbstractButton,
     QLabel, QApplication, QStyledItemDelegate, QTextEdit
 )
+from utils.manager import manager
 from utils.enums import TermType, LanguageDataFlags as LDF
 from utils.helpers import check_language
+from gui.helpers import message_box
 
 class CustomTableModel(QAbstractTableModel):
     def __init__(self, mw, terms, langs):
         super().__init__()
         self.mw = mw
-        self.manager = mw.manager
         self.undo_stack = QUndoStack()
         self.base_fields = [
             ("Key", "name"),
@@ -125,31 +126,31 @@ class CustomTableModel(QAbstractTableModel):
         index = self.index(row, column)
         self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
 
-    def add_language(self, name:str, code:str, flags:LDF, copy_code: str | None = ""):
+    def add_language(self, name: str, code: str, flags: LDF, copy_code: str | None = ""):
         title, msg = check_language(name, code, flags, self.langs)
         if title and msg:
-            self.mw.message_box(title, msg)
+            message_box(self.mw, title, msg)
             return
 
-        self.manager.content["languages"].append({
+        manager.content["languages"].append({
             "name": name,
             "code": code,
             "flags": flags
         })
 
-        for term in self.manager.content["terms"]:
+        for term in manager.get_terms():
             term.setdefault("translations", {})[code] = term.get("translations", {}).get(copy_code, "")
             term.setdefault("flags", {})[code] = 0
 
         self.mw.update_lang_selector()
 
-    def remove_language(self, code:str):
-        language = self.manager.get_language(code)
+    def remove_language(self, code: str):
+        language = manager.get_language(code)
         if not language:
             return
 
-        self.manager.content["languages"].remove(language)
-        for term in self.manager.content["terms"]:
+        manager.content["languages"].remove(language)
+        for term in manager.get_terms():
             term["translations"].pop(code, None)
             term["flags"].pop(code, None)
 
@@ -158,7 +159,7 @@ class CustomTableModel(QAbstractTableModel):
     # Not using it for now
     def add_term(self, term_text: str = "", term_type: TermType = TermType.TEXT, term_desc: str = "", flags: int = 0):
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-        self.manager.content["terms"].append({
+        manager.content["terms"].append({
             "name": term_text,
             "type": term_type.displayed,
             "desc": term_desc,

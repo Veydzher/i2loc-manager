@@ -7,6 +7,7 @@ ok-button = Ok
 apply-button = Apply
 close-button = Close
 cancel-button = Cancel
+discard-button = Discard
 all-languages = All Languages
 term-count-label = Total Terms: {$count}
 report-dev = Please attach the file you were trying to open and post this error in {$link} tab.
@@ -23,7 +24,7 @@ file-menu-title = File
 open-button = Open
 open-tooltip = Open a UABEA dump file.
 open-recent-menu = Open Recent
-open-recent-tooltip = Open recently opened {$filename}.
+open-recent-tooltip = Open recently opened {$file_name}.
 clear-recent-button = Clear Recently Opened
 clear-recent-tooltip = Clear the list of recently opened files.
 save-button = Save
@@ -91,6 +92,7 @@ tsv-file = TSV files
 ## Status bar messages
 opening-file = Opening file: {$file_path}
 opened-file = File opened: {$file_path}
+saving-file = Saving file: {$file_path}
 saved-file = File saved: {$file_path}
 
 
@@ -104,7 +106,7 @@ export-button = Export
 export-button-disabled = Select at least one language to export.
 
 # Status bar message
-exporting-language-data = Exporting language data...
+exporting-file-data = Exporting data from {$file_name}...
 
 ## Helper text
 and-text = {$langs} and {$last_lang}.
@@ -122,7 +124,7 @@ info-success-export = Successfully exported {$translation_num ->
 } for {$language_num ->
     [one] {$language_num} language
     *[other] {$language_num} languages
-} to {$filename}.
+} to {$file_name}.
 
     Exported languages: {$languages}
 
@@ -136,7 +138,13 @@ import-to-language-label = <b>Target Language</b>
 do-not-import-option = Do not import
 import-button = Import
 import-button-disabled = Select at least one target language to import.
-importing-progress-label = Importing translations...
+importing-progress-label = Checking translations to import...
+importing-progress-title = Importing
+
+## Status bar messages
+importing-file-data = Importing data from {$file_name}...
+importing-file-canceled = Import from {$file_name} canceled.
+imported-data-success = Successfully imported data from {$file_name}.
 
 ## Popup messages
 error-no-headers = The file is empty or has no headers.
@@ -144,6 +152,7 @@ error-missing-headers = The file is missing required columns: {$headers}.
 error-no-langauges-columns = The file does not contain any language columns.
 error-no-available-model = No table model available.
 error-import-file = Failed to import file: {$error}.
+info-no-imported = No new translations to import.
 info-success-import = Successfully imported translations.
 
     Updated {$count ->
@@ -151,14 +160,13 @@ info-success-import = Successfully imported translations.
         *[other] {$count} translations
     }.
 
-import-no-imported = No new translations to import.
 
 ## Manage languages module
 
 -ml-title-term = Language Manager
 ml-title = {-ml-title-term}
 ml-warning-desc = NOTE: Not every videogame has a dynamic language management.
-    Some of them might have their own hardcoded language management.
+    Some of them might have their own hardcoded or Unity-based language management.
 ml-languages-label = Languages:
 ml-reorder-label = Reorder
 ml-move-up-button = Move up
@@ -171,6 +179,9 @@ ml-languages-count = {$count ->
     [one] {$count} language
     *[other] {$count} languages
 }
+
+lang-flag-enabled = Enabled
+lang-flag-disabled = Disabled
 
 ## Add language dialog
 

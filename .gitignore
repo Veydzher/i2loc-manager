@@ -1,9 +1,5 @@
 # Custom
-dump/
-themes/
-.vscode/
 dist-dev/
-templates/
 
 *.xml
 *.csv

@@ -5,21 +5,22 @@ from PySide6.QtWidgets import (
     QFileDialog, QDialog, QLabel, QComboBox, QProgressDialog, QVBoxLayout,
     QGridLayout, QDialogButtonBox, QWidget, QScrollArea
 )
+from gui.helpers import message_box
+from utils.app_locales import fluent
+from utils.manager import manager
+from utils.helpers import normalise
 from utils.enums import (
-    FileExts as FE,
-    FileSeps as FS
+    FileExtension as FE,
+    FileSeperator as FS
 )
 
 class ImportModule:
     def __init__(self, main_window):
         self.mw = main_window
-        self.manager = self.mw.manager
-        self.ts = self.mw.fluent.tr_batch([
-            "open-title",
-            "all-files",
-            "csv-file",
-            "tsv-file",
+        self.ts = fluent.tr_batch([
+            "open-title", "all-files", "csv-file", "tsv-file",
             "importing-progress-label",
+            "importing-progress-title",
             "import-translations-title",
             "import-select-languages",
             "imported-language-label",
@@ -32,20 +33,24 @@ class ImportModule:
         self.import_languages()
 
     def import_languages(self):
-        file_path, _ = QFileDialog.getOpenFileName(
+        path, _ = QFileDialog.getOpenFileName(
             self.mw, self.ts["open-title"], "",
             f"{self.ts['all-files']} (*.*);;"
             f"{self.ts['csv-file']} (*{FE.CSV.value});;"
             f"{self.ts['tsv-file']} (*{FE.TSV.value})"
         )
 
-        if not os.path.isfile(file_path):
+        if not os.path.isfile(path):
             return
 
+        file_path = os.path.abspath(path)
+        file_name = os.path.basename(file_path)
         file_ext = os.path.splitext(file_path)[1].lower()
         if file_ext not in [FE.CSV.value, FE.TSV.value]:
-            self.mw.message_box("error", "error-invalid-file")
+            message_box(self.mw, "error", "error-invalid-file")
             return
+
+        self.mw.status_bar_message(("importing-file-data", {"file_name": file_name}))
 
         try:
             delimiter = FS[FE(file_ext).name].value
@@ -54,18 +59,18 @@ class ImportModule:
                 headers = next(reader, [])
 
                 if not headers:
-                    self.mw.message_box("error", "error-no-headers")
+                    message_box(self.mw, "error", "error-no-headers")
                     return
 
                 required_columns = ["Key", "Type", "Desc"]
                 missing_columns = [col for col in required_columns if col not in headers]
                 if missing_columns:
-                    self.mw.message_box("error", ("error-missing-headers", {"headers": ", ".join(missing_columns)}))
+                    message_box(self.mw, "error", ("error-missing-headers", {"headers": ", ".join(missing_columns)}))
                     return
 
                 csv_languages = [col for col in headers if col not in required_columns]
                 if not csv_languages:
-                    self.mw.message_box("error", "error-no-languages-columns")
+                    message_box(self.mw, "error", "error-no-languages-columns")
                     return
 
                 lang_mapping = self._get_import_languages(csv_languages)
@@ -77,14 +82,14 @@ class ImportModule:
                     reader = csv.DictReader(f, delimiter=delimiter)
                     for row in reader:
                         new_row = {
-                            k: (v.replace("\r\n", "\n").replace("\r", "\n") if v else v)
+                            k: normalise(v)
                             for k, v in row.items()
                         }
                         csv_data.append(new_row)
 
                 model = self.mw.custom_table.table_model
                 if not model:
-                    self.mw.message_box("error", "error-no-available-model")
+                    message_box(self.mw, "error", "error-no-available-model")
                     return
 
                 term_to_row = {
@@ -93,14 +98,15 @@ class ImportModule:
                 }
 
                 progress = QProgressDialog(self.ts["importing-progress-label"], self.ts["cancel-button"], 0, len(csv_data), self.mw)
+                progress.setWindowTitle(self.ts["importing-progress-title"])
                 progress.setWindowModality(Qt.WindowModality.WindowModal)
                 progress.setValue(0)
 
                 updated_count = 0
-
                 for i, data in enumerate(csv_data):
                     progress.setValue(i)
                     if progress.wasCanceled():
+                        self.mw.status_bar_message(("importing-file-canceled", {"file_name": file_name}))
                         break
 
                     term_key = data.get("Key", "")
@@ -121,34 +127,40 @@ class ImportModule:
                             if col_index != -1:
                                 index = model.index(row_index, col_index)
                                 model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                                if col_value and model_data != col_value:
+                                normalised_data_value = normalise(model_data)
+
+                                if col_value and normalised_data_value != col_value:
                                     model.setData(index, col_value, Qt.ItemDataRole.EditRole)
                                     updated_count += 1
+
                         elif col_header in lang_mapping:
                             lang_code = lang_mapping[col_header]
                             col_index = next((i for i, (_, key) in enumerate(model.columns) if key == lang_code), -1)
                             if col_index != -1:
                                 index = model.index(row_index, col_index)
                                 model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                                if col_value and model_data != col_value:
+                                normalised_data_value = normalise(model_data)
+
+                                if col_value and normalised_data_value != col_value:
                                     model.setData(index, col_value, Qt.ItemDataRole.EditRole)
                                     updated_count += 1
 
                 progress.setValue(len(csv_data))
 
                 if updated_count:
-                    self.mw.message_box("information", ("info-success-import", {"count": updated_count}))
+                    self.mw.status_bar_message(("imported-data-success", {"file_name": file_name}))
+                    message_box(self.mw, "information", ("info-success-import", {"count": updated_count}))
                 else:
-                    self.mw.message_box("information", "import-no-imported")
+                    message_box(self.mw, "information", "info-no-imported")
         except Exception as e:
-            self.mw.message_box("error", ("error-import-file", {"error": str(e)}))
+            message_box(self.mw, "error", ("error-import-file", {"error": str(e)}))
             return
 
-    def _get_import_languages(self, table_langs):
-        langs = self.manager.get_languages("displayed")
+    def _get_import_languages(self, table_langs: list):
+        langs = manager.get_displayed_languages()
 
         if not table_langs and langs:
-            self.mw.message_box("warning", "warning-no-available-languages")
+            message_box(self.mw, "warning", "warning-no-available-languages")
             return {}
 
         dialog = QDialog(self.mw)
@@ -222,9 +234,8 @@ class ImportModule:
         if result == QDialog.DialogCode.Accepted:
             for csv_lang, combo in mappings.items():
                 selected_index = combo.currentIndex() - 1
-                selected_text = combo.currentText()
                 if selected_index >= 0:
-                    code, _ = self.manager.get_language_from_text(selected_text)
+                    code, _ = manager.get_language_by_index(selected_index)
                     if code:
                         lang_mapping[csv_lang] = code
 

@@ -1,12 +1,12 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QDialog, QVBoxLayout, QPushButton
+from utils.app_locales import fluent
 
 class About(QDialog):
     def __init__(self, mw):
         super().__init__(mw)
-        self.ftr = mw.fluent.tr
-        self.ts = mw.fluent.tr_batch([
-            "about-app", ("about-app-version", {"version": "1.0"}), "close-button",
+        self.ts = fluent.tr_batch([
+            "about-app", ("about-app-version", {"version": "1.0.1"}), "close-button",
             ("about-app-desc", {
                 "I2Localization":
                     "<a href=http://inter-illusion.com/tools/i2-localization>I2 Localization</a>",
@@ -18,13 +18,10 @@ class About(QDialog):
         self.setup_dialog()
 
     def setup_dialog(self):
-        self.setWindowTitle(self.ts["about-app"])
         self.setFixedSize(300, 200)
+        self.setWindowTitle(self.ts["about-app"])
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
-        self.create_layout()
-
-    def create_layout(self):
         layout = QVBoxLayout(self)
 
         app_name = QLabel("<b>I2 Localization Manager</b>")

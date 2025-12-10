@@ -1,32 +1,30 @@
 import os
 import csv
+from typing import Any
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import (
     QFileDialog, QVBoxLayout, QDialog, QWidget, QHBoxLayout, QScrollArea, QCheckBox,
     QLabel, QSpacerItem, QSizePolicy, QPushButton, QDialogButtonBox, QComboBox
 )
+from gui.helpers import message_box
+from utils.app_locales import fluent, ftr
+from utils.manager import manager
 from utils.enums import (
-    FileExts as FE,
-    FileSeps as FS
+    FileExtension as FE,
+    FileSeperator as FS
 )
 
 class ExportModule:
     def __init__(self, main_window):
         self.mw = main_window
-        self.ftr = self.mw.fluent.tr
-        self.manager = self.mw.manager
         self.lang_selector = self.mw.lang_selector
-
-        self.ts = self.mw.fluent.tr_batch([
-            "save-title",
-            "csv-file",
-            "tsv-file",
+        self.ts = fluent.tr_batch([
+            "save-title", "csv-file", "tsv-file",
             "export-translations-title",
             "export-languages-label",
             "select-all-button",
             "deselect-all-button",
-            "export-button",
-            "export-button-disabled",
+            "export-button", "export-button-disabled",
             "cancel-button"
         ])
 
@@ -34,34 +32,36 @@ class ExportModule:
         if not selected_languages:
             return
 
-        filepath, _ = QFileDialog.getSaveFileName(
+        path, _ = QFileDialog.getSaveFileName(
             self.mw, self.ts["save-title"],
-            f"{self.manager.filename}_exported",
-            f"{self.ts['csv-file']} (*{FE.CSV.value});;{self.ts['tsv-file']} (*{FE.TSV.value})"
+            f"{manager.filename}_exported",
+            f"{self.ts['csv-file']} (*{FE.CSV.value});;"
+            f"{self.ts['tsv-file']} (*{FE.TSV.value})"
         )
 
-        if not filepath:
+        if not path:
             return
 
         try:
-            delimiter = FS[FE(os.path.splitext(filepath)[1]).name].value
-            terms = self.manager.content["terms"]
+            file_path = os.path.abspath(path)
+            file_name = os.path.basename(file_path)
+            delimiter = FS[FE(os.path.splitext(file_path)[1]).name].value
+            terms = manager.get_terms()
             if not terms:
-                self.mw.message_box("warning", "warning-no-terms-found")
+                message_box(self.mw, "warning", "warning-no-terms-found")
                 return
 
-            self.mw.status_bar_message("exporting-language-data")
-            self.export_selected_languages(filepath, delimiter, terms, selected_languages)
-            self.mw.status_bar_message(("saved-file", {"file_path": filepath}), 15000)
+            self.mw.status_bar_message(("exporting-file-data", {"file_name": file_name}))
+            self.export_selected_languages(file_path, delimiter, terms, selected_languages)
         except Exception as e:
-            self.mw.message_box("error", ("error-export-file", {"error": str(e)}))
+            message_box(self.mw, "error", ("error-export-file", {"error": str(e)}))
 
     def _select_languages_to_export(self):
-        lang_names = self.manager.get_languages("names")
-        lang_codes = self.manager.get_languages("codes")
+        lang_names = manager.get_language_names()
+        lang_codes = manager.get_language_codes()
 
         if not lang_names and lang_codes:
-            self.mw.message_box("warning", "warning-no-available-languages")
+            message_box(self.mw, "warning", "warning-no-available-languages")
             return {}
 
         dialog = QDialog(self.mw)
@@ -130,17 +130,20 @@ class ExportModule:
 
         selected_languages = {w.code: w.name for w in widgets if w.isChecked()}
         if not selected_languages:
-            self.mw.message_box("warning", "warning-no-languages-selected")
+            message_box(self.mw, "warning", "warning-no-languages-selected")
             return {}
 
         return selected_languages
 
-    def export_selected_languages(self, filepath, delimiter, terms, selected_languages):
+    def export_selected_languages(self, file_path: str, delimiter: str, terms: list[dict[str, Any]], selected_languages: dict[str, str]):
         try:
-            with open(filepath, "w+", encoding="utf-8", newline="") as f:
-                langs = [f"{name} [{code}]" if code != name.lower() else name for code, name in selected_languages.items()]
+            with open(file_path, "w+", encoding="utf-8", newline="") as f:
+                langs = [
+                    f"{name} [{code}]" if code != name.lower() else name
+                    for code, name in selected_languages.items()
+                ]
                 fields = ["Key", "Type", "Desc"] + langs
-                writer = csv.DictWriter(f, fieldnames=fields, delimiter=delimiter)
+                writer = csv.DictWriter(f, fields, delimiter=delimiter)
                 writer.writeheader()
 
                 exported_translations = 0
@@ -157,21 +160,21 @@ class ExportModule:
                         })
                         exported_translations += 1
                     except Exception as e:
-                        self.mw.message_box("error", ("error-processing-term", {"num": index+1, "term_name": term["name"], "error": str(e)}))
+                        message_box(self.mw, "error", ("error-processing-term", {"num": index+1, "term_name": term["name"], "error": str(e)}))
                         return
 
             output_langs = (
-                self.ftr("and-text", {"langs": ", ".join(list(selected_languages.values())[:-1]), "last_lang": list(selected_languages.values())[-1]})
+                ftr("and-text", {"langs": ", ".join(list(selected_languages.values())[:-1]), "last_lang": list(selected_languages.values())[-1]})
                 if len(list(selected_languages.values())) > 1 else list(selected_languages.values())[0]
             )
 
-            self.mw.message_box("information", ("info-success-export", {
+            self.mw.status_bar_message(("saved-file", {"file_path": file_path}), 15000)
+            message_box(self.mw, "information", ("info-success-export", {
                 "translation_num": exported_translations, "language_num": len(selected_languages),
-                "filename": os.path.basename(filepath), "languages": output_langs
+                "file_name": os.path.basename(file_path), "languages": output_langs
             }))
-
         except Exception as e:
-            self.mw.message_box("error", ("error-export-languages", {"error": str(e)}))
+            message_box(self.mw, "error", ("error-export-languages", {"error": str(e)}))
 
 class LanguageCheckBox(QWidget):
     def __init__(self, name: str, code: str, lang_selector: QComboBox):

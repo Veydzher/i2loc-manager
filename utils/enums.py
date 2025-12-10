@@ -1,14 +1,18 @@
 from enum import Enum, unique
 
 @unique
-class FileExts(Enum):
+class FileExtension(Enum):
     CSV = ".csv"
     TSV = ".tsv"
     TXT = ".txt"
     JSON = ".json"
 
+    @classmethod
+    def parse(cls, s: str):
+        return cls[s.lstrip(".").upper()]
+
 @unique
-class FileSeps(Enum):
+class FileSeperator(Enum):
     CSV = ","
     TSV = "\t"
 
@@ -31,12 +35,12 @@ class TermType(Enum):
         return self.name.title().strip().replace("_", " ")
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.replace(" ", "_").upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
@@ -55,20 +59,18 @@ class PluralType(Enum):
 class LanguageDataFlags(Enum):
     ENABLED = 0
     DISABLED = 1
-    LOCKED = 2
-    UNLOADED = 4
 
     @property
     def displayed(self):
         return self.name.title()
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
@@ -86,12 +88,12 @@ class MissingTranslationAction(Enum):
         return self.name.title().replace("_", " ")
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.replace(" ", "_").upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
@@ -107,12 +109,12 @@ class AllowUnloadLanguages(Enum):
         return self.name.title().replace("_", " ")
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.replace(" ", "_").upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
@@ -133,12 +135,12 @@ class GoogleUpdateFrequency(Enum):
         return self.name.title().replace("_", " ")
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.replace(" ", "_").upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
@@ -155,12 +157,12 @@ class GoogleUpdateSynchronization(Enum):
         return self.name.title().replace("_", " ")
 
     @classmethod
-    def enumased(cls, s: str):
+    def parse(cls, s: str):
         return cls[s.replace(" ", "_").upper()]
 
     @classmethod
-    def _value(cls, s: str | Enum):
-        return cls.enumased(s).value if isinstance(s, str) else s.value
+    def get_value(cls, s: str | Enum):
+        return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
     def titles(cls):
