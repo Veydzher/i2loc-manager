@@ -1,18 +1,22 @@
-import os
 import csv
+from pathlib import Path
 from typing import Any
+
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import (
     QFileDialog, QVBoxLayout, QDialog, QWidget, QHBoxLayout, QScrollArea, QCheckBox,
     QLabel, QSpacerItem, QSizePolicy, QPushButton, QDialogButtonBox, QComboBox
 )
+
 from gui.helpers import message_box
 from utils.app_locales import fluent, ftr
-from utils.manager import manager
 from utils.enums import (
-    FileExtension as FE,
-    FileSeperator as FS
+    FileExtension as Fe,
+    FileSeperator as Fs,
+    LanguageDataFlags as Ldf
 )
+from utils.manager import manager
+
 
 class ExportModule:
     def __init__(self, main_window):
@@ -32,35 +36,34 @@ class ExportModule:
         if not selected_languages:
             return
 
-        path, _ = QFileDialog.getSaveFileName(
+        path = QFileDialog.getSaveFileName(
             self.mw, self.ts["save-title"],
-            f"{manager.filename}_exported",
-            f"{self.ts['csv-file']} (*{FE.CSV.value});;"
-            f"{self.ts['tsv-file']} (*{FE.TSV.value})"
-        )
+            f"{manager.file_name}_exported",
+            f"{self.ts['csv-file']} (*{Fe.CSV.value});;"
+            f"{self.ts['tsv-file']} (*{Fe.TSV.value})"
+        )[0]
 
         if not path:
             return
 
         try:
-            file_path = os.path.abspath(path)
-            file_name = os.path.basename(file_path)
-            delimiter = FS[FE(os.path.splitext(file_path)[1]).name].value
+            path = Path(path)
+            file_name = path.stem
+            delimiter = Fs[Fe(path.suffix).name].value
             terms = manager.get_terms()
             if not terms:
                 message_box(self.mw, "warning", "warning-no-terms-found")
                 return
 
             self.mw.status_bar_message(("exporting-file-data", {"file_name": file_name}))
-            self.export_selected_languages(file_path, delimiter, terms, selected_languages)
+            self.export_selected_languages(path, delimiter, terms, selected_languages)
         except Exception as e:
             message_box(self.mw, "error", ("error-export-file", {"error": str(e)}))
 
     def _select_languages_to_export(self):
-        lang_names = manager.get_language_names()
-        lang_codes = manager.get_language_codes()
+        languages = manager.get_languages()
 
-        if not lang_names and lang_codes:
+        if not languages:
             message_box(self.mw, "warning", "warning-no-available-languages")
             return {}
 
@@ -80,8 +83,8 @@ class ExportModule:
         scroll_area.setWidget(QWidget())
 
         widgets = [
-            LanguageCheckBox(name, code, self.lang_selector)
-            for name, code in zip(lang_names, lang_codes)
+            LanguageCheckBox(lang["name"], lang["code"], lang["flags"], self.lang_selector)
+            for lang in languages
         ]
         checkbox_layout = QVBoxLayout(scroll_area.widget())
 
@@ -93,7 +96,7 @@ class ExportModule:
         def set_all(state):
             for widget in widgets:
                 if widget.isVisible():
-                    widget.setChecked(state)
+                    widget.SetChecked(state)
 
         button_layout = QHBoxLayout()
         select_all_button = QPushButton(self.ts["select-all-button"])
@@ -113,8 +116,8 @@ class ExportModule:
         layout.addWidget(button_box)
 
         def update_dialog_buttons():
-            any_checked = any(w.isChecked() for w in widgets)
-            all_checked = all(w.isChecked() for w in widgets)
+            any_checked = any(widget.IsChecked() for widget in widgets)
+            all_checked = all(widget.IsChecked() for widget in widgets)
 
             select_all_button.setDisabled(all_checked)
             deselect_all_button.setDisabled(not any_checked)
@@ -128,14 +131,14 @@ class ExportModule:
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return {}
 
-        selected_languages = {w.code: w.name for w in widgets if w.isChecked()}
+        selected_languages = {w.code: w.name for w in widgets if w.IsChecked()}
         if not selected_languages:
             message_box(self.mw, "warning", "warning-no-languages-selected")
             return {}
 
         return selected_languages
 
-    def export_selected_languages(self, file_path: str, delimiter: str, terms: list[dict[str, Any]], selected_languages: dict[str, str]):
+    def export_selected_languages(self, file_path: Path, delimiter: str, terms: list[dict[str, Any]], selected_languages: dict[str, str]):
         try:
             with open(file_path, "w+", encoding="utf-8", newline="") as f:
                 langs = [
@@ -168,25 +171,31 @@ class ExportModule:
                 if len(list(selected_languages.values())) > 1 else list(selected_languages.values())[0]
             )
 
-            self.mw.status_bar_message(("saved-file", {"file_path": file_path}), 15000)
+            self.mw.status_bar_message(("saved-file", {"file_path": str(file_path)}), 15000)
             message_box(self.mw, "information", ("info-success-export", {
                 "translation_num": exported_translations, "language_num": len(selected_languages),
-                "file_name": os.path.basename(file_path), "languages": output_langs
+                "file_name": file_path.name, "languages": output_langs
             }))
         except Exception as e:
             message_box(self.mw, "error", ("error-export-languages", {"error": str(e)}))
 
+
 class LanguageCheckBox(QWidget):
-    def __init__(self, name: str, code: str, lang_selector: QComboBox):
+    def __init__(self, name: str, code: str, flags: Ldf, lang_selector: QComboBox):
         super().__init__()
         self.name = name
         self.code = code
+        self.flags = flags
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
         lang_name = f"{name} [{code}]" if code != name.lower() else name
         self.checkbox = QCheckBox(lang_name)
+
+        if flags == Ldf.DISABLED:
+            self.checkbox.setStyleSheet("QCheckBox { color: #808080; }")  # Gray color
+
         if lang_selector.currentIndex() == 0:
             self.checkbox.setChecked(True)
         elif lang_selector.currentIndex() != 0 and lang_name == lang_selector.currentText():
@@ -196,8 +205,9 @@ class LanguageCheckBox(QWidget):
 
         layout.addWidget(self.checkbox)
 
-    def isChecked(self):
+    def IsChecked(self):
         return self.checkbox.isChecked()
 
-    def setChecked(self, arg__1):
+    def SetChecked(self, arg__1):
         self.checkbox.setChecked(arg__1)
+

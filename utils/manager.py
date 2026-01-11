@@ -1,27 +1,29 @@
-import os
-import re
 import json
-from typing import Any
+import re
 from copy import deepcopy
-from utils.helpers import escape, unescape
-from utils.exceptions import (
-    ParsingTxtError,
+from pathlib import Path
+from typing import Any
+
+from utils.enums import (
+    FileExtension as Fe,
+    TermType as Tt,
+    LanguageDataFlags as Ldf,
+    GoogleUpdateFrequency as Guf,
+    GoogleUpdateSynchronization as Gus,
+    MissingTranslationAction as Mta,
+    AllowUnloadLanguages as Aul
+)
+from utils.helpers import (
+    escape,
+    parse_raw_value,
     InvalidExtensionError
 )
-from utils.enums import (
-    FileExtension as FE,
-    TermType as TT,
-    LanguageDataFlags as LDF,
-    GoogleUpdateFrequency as GUF,
-    GoogleUpdateSynchronization as GUS,
-    MissingTranslationAction as MTA,
-    AllowUnloadLanguages as AUL
-)
+
 
 class I2Manager:
     def __init__(self):
-        self.filename: str = ""
-        self.filepath: str = ""
+        self.file_name: str = ""
+        self.file_path: Path = Path()
         self.backup: dict[str, Any] = {}
         self.content: dict[str, Any] = {}
 
@@ -67,7 +69,7 @@ class I2Manager:
             lang["code"]
             for lang in self.get_languages()
         ]
-    
+
     def update_code_entries(self, lang_code: str, new_code: str):
         if lang_code == new_code:
             return
@@ -78,55 +80,51 @@ class I2Manager:
             flags = term["flags"]
             flags[new_code] = flags.pop(lang_code)
 
-    def open_dump_file(self, path: str):
-        # Implement a whole structure check rather than terms/languages arrays one
+    def open_dump_file(self, path: str | Path):
         try:
+            if isinstance(path, str):
+                path = Path(path)
+
             with open(path, "r", encoding="utf-8") as f:
-                content = f.read()
-                name = os.path.splitext(os.path.basename(path))[0]
-                ext = FE.parse(os.path.splitext(path)[1])
+                suffix = Fe.parse(path.suffix)
+                if suffix is Fe.TXT:
+                    content = self.convert_txt_dump(f.readlines())
+                elif suffix is Fe.JSON:
+                    content = json.loads(f.read())
+                else:
+                    return "error-invalid-extension"
 
-            if ext is FE.TXT:
-                terms = len(re.findall(r"\[\d+\]\s+.*TermData\s+data", content))
-                langs = len(re.findall(r"\[\d+\]\s+.*LanguageData\s+data", content))
+            terms = content.get("mSource", {}).get("mTerms", {}).get("Array", [])
+            langs = content.get("mSource", {}).get("mLanguages", {}).get("Array", [])
 
-                if not terms or not langs:
-                    return "error-no-terms-language"
+            if not terms or not langs:
+                return "error-no-terms-language"
 
-                output_content = self.parse_txt_dump(content)
-            elif ext is FE.JSON:
-                content = json.loads(content)
-                terms = content.get("mSource", {}).get("mTerms", {}).get("Array", [])
-                langs = content.get("mSource", {}).get("mLanguages", {}).get("Array", [])
+            output_content = self.parse_json_dump(content)
 
-                if not terms or not langs:
-                    return "error-no-terms-language"
-
-                output_content = self.parse_json_dump(content)
-            else:
-                return "error-invalid-extension"
-
-            self.filename = name
-            self.filepath = path
+            self.file_path = path
+            self.file_name = path.stem
             self.content = output_content
             self.make_backup()
             return True
         except (OSError, KeyError, MemoryError, PermissionError) as e:
             return str(e)
-        except ParsingTxtError as e:
-            return "error-parsing-txt", {"error": e.args[0]}
 
     def save_dump_file(self, file_path: str):
         try:
-            extension = FE.parse(os.path.splitext(file_path)[1])
+            if isinstance(file_path, str):
+                file_path = Path(file_path)
+
             with open(file_path, "w+", encoding="utf-8") as f:
-                if extension is FE.TXT:
+                suffix = Fe.parse(file_path.suffix)
+                if suffix is Fe.TXT:
                     output = self.build_txt_dump()
-                elif extension is FE.JSON:
+                elif suffix is Fe.JSON:
                     output = self.build_json_dump()
                 else:
                     raise InvalidExtensionError
 
+                self.make_backup()
                 f.write(output)
                 return True
         except (FileNotFoundError, PermissionError) as e:
@@ -138,163 +136,72 @@ class I2Manager:
         except InvalidExtensionError:
             return "error-invalid-extension"
 
-    def parse_txt_dump(self, dump_content: Any):
-        result = {
-            "structure": {"import": FE.TXT},
-            "metadata": {},
-            "terms": [],
-            "languages": []
-        }
+    @staticmethod
+    def convert_txt_dump(dump_lines: list[str]):
+        """Converts UABEA txt dump into JSON one."""
+        root = {}
+        stack = [(-1, root)]
 
-        structure_patterns = {
-            "m_GameObject": (int, None, r"PPtr<GameObject>\s+m_GameObject\s+.*int m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
-            "m_Enabled": (int, bool, r"UInt8\s+m_Enabled\s*=\s*(\d+)"),
-            "m_Script": (int, None, r"PPtr<MonoScript>\s+m_Script\s+.*int\s+m_FileID\s*=\s*(\d+)\s+.*SInt64\s+m_PathID\s*=\s*(\d+)"),
-            "m_Name": (str, None, r"string\s+m_Name\s*=\s*\"(.*)\"")
-        }
+        i = 0
+        while i < len(dump_lines):
+            raw = dump_lines[i].rstrip()
+            i += 1
 
-        patterns = {
-            "term_data": r"(?=TermData data)",
-            "term_name": r"Term\s*=\s*\"(.*)\"",
-            "term_type": r"TermType\s*=\s*(\d+)",
-            "term_desc": r"Description\s*=\s*\"(.*)\"",
-            "term_languages": r"Languages.*?size\s*=\s*(\d+)(.*?)0\s+string\s+Languages_Touch",
-            "term_translation": r"string\s+data\s*=\s*\"(.*)\"",
-            "term_flag": r"UInt8\s+data\s*=\s*(\d+)",
-            "term_languages_touch": r"Languages_Touch[\s\S]*?size\s*=\s*(\d+)([\s\S]*?)(?=\n\s*0\s+\w|\Z)",
-
-            "language_data": r"LanguageData.*\s+.*Name\s*=\s*\"(.*?)\"\s+.*Code\s*=\s*\"(.*?)\"\s+.*Flags\s*=\s*(\d+)",
-
-            "assets_block": r"vector\s+Assets\s*.*Array\s+Array\s+\((\d+)\s*items\)\s*.*size\s*=\s*\d+([\s\S]*?)(?=\n\d*\n|\Z)",
-            "assets_item": r"\[\d+\][\s\S]*?m_FileID\s*=\s*(\d+)[\s\S]*?m_PathID\s*=\s*(\d+)"
-        }
-
-        metadata_patterns = {
-            "UserAgreesToHaveItOnTheScene": (int, bool),
-            "UserAgreesToHaveItInsideThePluginsFolder": (int, bool),
-            "GoogleLiveSyncIsUptoDate": (int, bool),
-
-            "CaseInsensitiveTerms": (int, bool),
-            "OnMissingTranslation": (int, MTA),
-            "mTerm_AppName": (str, None),
-
-            "IgnoreDeviceLanguage": (int, bool),
-            "_AllowUnloadingLanguages": (int, AUL),
-            "Google_WebServiceURL": (str, None),
-            "Google_SpreadsheetKey": (str, None),
-            "Google_SpreadsheetName": (str, None),
-            "Google_LastUpdatedVersion": (str, None),
-            "GoogleUpdateFrequency": (int, GUF),
-            "GoogleInEditorCheckFrequency": (int, GUF),
-            "GoogleUpdateSynchronization": (int, GUS),
-            "GoogleUpdateDelay": (float, None)
-        }
-
-        for key, (key_type, value_type, pattern) in structure_patterns.items():
-            fs_match = re.search(pattern, dump_content)
-            if fs_match:
-                if len(fs_match.groups()) == 1:
-                    fs_result = value_type(key_type(fs_match.group(1))) if value_type else key_type(fs_match.group(1))
-                else:
-                    fs_result = {
-                        "m_FileID": key_type(fs_match.group(1)),
-                        "m_PathID": key_type(fs_match.group(2))
-                    }
-
-                result["structure"][key] = fs_result
-            else:
-                raise ParsingTxtError(key)
-
-        language_codes = []
-        for name, code, flags in re.findall(patterns["language_data"], dump_content):
-            code = code or name.lower()
-            language_codes.append(code)
-            result["languages"].append({
-                "name": name,
-                "code": code,
-                "flags": LDF(int(flags))
-            })
-
-        term_blocks = re.split(patterns["term_data"], dump_content)
-        if not term_blocks[0].startswith("TermData data"):
-            term_blocks = term_blocks[1:]
-
-        for block in term_blocks:
-            name_match = re.search(patterns["term_name"], block)
-            if not name_match:
+            if not raw.strip() or raw.startswith("0 MonoBehaviour Base"):
                 continue
 
-            type_match = re.search(patterns["term_type"], block)
-            type_match = int(type_match.group(1)) if type_match else 0
-            desc_match = re.search(patterns["term_desc"], block)
+            indent = len(raw) - len(raw.lstrip(' '))
+            line = raw.strip()
 
-            term_name = name_match.group(1)
-            term_type = TT(type_match)
-            term_desc = desc_match.group(1) if desc_match else ""
+            # find parent by indentation
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
 
-            term_languages_touch = []
-            languages_touch_match = re.search(patterns["term_languages_touch"], block)
-            if (
-                languages_touch_match
-                and int(languages_touch_match.group(1)) > 0
-                and int(languages_touch_match.group(2)) > 0
-            ):
-                languages_touch_matches = re.findall(patterns["term_translation"], languages_touch_match.group(2))
-                term_languages_touch = [unescape(tr) for tr in languages_touch_matches]
+            parent = stack[-1][1]
 
-            term_flags = {}
-            term_translations = {}
-            section_match = re.search(patterns["term_languages"], block, re.DOTALL)
-            if section_match:
-                section = section_match.group(2)
-                tr_matches = re.findall(patterns["term_translation"], section)
-                fl_matches = re.findall(patterns["term_flag"], section)
+            # skip array indices and size lines
+            if re.match(r'\[\d+]', line):
+                continue
+            if "int size" in line:
+                continue
 
-                for idx, (tr, fl) in enumerate(zip(tr_matches, fl_matches)):
-                    if idx < len(language_codes):
-                        code = language_codes[idx]
-                        term_translations[code] = unescape(tr)
-                        term_flags[code] = int(fl)
+            # array container
+            if "Array Array" in line:
+                arr = []
+                if isinstance(parent, dict):
+                    parent["Array"] = arr
+                stack.append((indent, arr))
+                continue
 
-            result["terms"].append({
-                "name": term_name,
-                "type": term_type,
-                "desc": term_desc,
-                "translations": term_translations,
-                "flags": term_flags,
-                "languages_touch": term_languages_touch
-            })
+            # parse value
+            if "=" in line:
+                left, right = line.split("=", 1)
+                right = right.strip()
+                left = left.strip()
 
-        for key, (key_type, value_type) in metadata_patterns.items():
-            if key_type is int:
-                value = r"(\d+)"
-            elif key_type is float:
-                value = r"(\d+)"
+                name = left.split()[-1]
+                value = parse_raw_value(right)
+
+                if isinstance(parent, list):
+                    parent.append(value)
+                else:
+                    parent[name] = value
+                continue
+
+            # object start (vector, PPtr etc)
+            parts = line.split()
+            name = parts[-1]
+
+            obj = {}
+
+            if isinstance(parent, list):
+                parent.append(obj)
             else:
-                value = r"\"(.*)\""
+                parent[name] = obj
 
-            pattern = fr"{key}\s*=\s*{value}"
-            match = re.search(pattern, dump_content)
-            if match:
-                parsed_value = key_type(match.group(1))
-                result["metadata"][key] = value_type(parsed_value) if value_type else parsed_value
-            else:
-                raise ParsingTxtError(key)
+            stack.append((indent, obj))
 
-        assets_match = re.search(patterns["assets_block"], dump_content, re.DOTALL)
-        if assets_match:
-            asset_refs = {"Array": []}
-            assets_section = assets_match.group(2)
-            assets_items = re.findall(patterns["assets_item"], assets_section)
-            if assets_items:
-                for file_id, path_id in assets_items:
-                    asset_refs["Array"].append({
-                        "m_FileID": int(file_id),
-                        "m_PathID": int(path_id)
-                    })
-            result["metadata"]["Assets"] = asset_refs
-
-        return result
+        return root
 
     def build_txt_dump(self):
         output = []
@@ -336,7 +243,7 @@ class I2Manager:
                 output.append(f"    [{i}]")
                 output.append("     0 TermData data")
                 output.append(f"      1 string Term = \"{term['name']}\"")
-                output.append(f"      0 int TermType = {TT.get_value(term['type'])}")
+                output.append(f"      0 int TermType = {Tt.get_value(term['type'])}")
                 if term["desc"]:
                     output.append(f"      1 string Description = \"{term['desc']}\"")
 
@@ -369,7 +276,7 @@ class I2Manager:
                     output.append(f"         1 string data = \"{touch}\"")
 
             output.append(f"  1 UInt8 CaseInsensitiveTerms = {int(metadata['CaseInsensitiveTerms'])}")
-            output.append(f"  0 int OnMissingTranslation = {MTA.get_value(metadata['OnMissingTranslation'])}")
+            output.append(f"  0 int OnMissingTranslation = {Mta.get_value(metadata['OnMissingTranslation'])}")
             output.append(f"  1 string mTerm_AppName = \"{metadata['mTerm_AppName']}\"")
 
             output.append("  0 LanguageData mLanguages")
@@ -381,17 +288,17 @@ class I2Manager:
                 output.append("     0 LanguageData data")
                 output.append(f"      1 string Name = \"{lang['name']}\"")
                 output.append(f"      1 string Code = \"{lang['code']}\"")
-                output.append(f"      1 UInt8 Flags = {LDF.get_value(lang['flags'])}")
+                output.append(f"      1 UInt8 Flags = {Ldf.get_value(lang['flags'])}")
 
             output.append(f"  1 UInt8 IgnoreDeviceLanguage = {int(metadata['IgnoreDeviceLanguage'])}")
-            output.append(f"  0 int _AllowUnloadingLanguages = {AUL.get_value(metadata['_AllowUnloadingLanguages'])}")
+            output.append(f"  0 int _AllowUnloadingLanguages = {Aul.get_value(metadata['_AllowUnloadingLanguages'])}")
             output.append(f"  1 string Google_WebServiceURL = \"{metadata['Google_WebServiceURL']}\"")
             output.append(f"  1 string Google_SpreadsheetKey = \"{metadata['Google_SpreadsheetKey']}\"")
             output.append(f"  1 string Google_SpreadsheetName = \"{metadata['Google_SpreadsheetName']}\"")
             output.append(f"  1 string Google_LastUpdatedVersion = \"{metadata['Google_LastUpdatedVersion']}\"")
-            output.append(f"  0 int GoogleUpdateFrequency = {GUF.get_value(metadata['GoogleUpdateFrequency'])}")
-            output.append(f"  0 int GoogleInEditorCheckFrequency = {GUF.get_value(metadata['GoogleInEditorCheckFrequency'])}")
-            output.append(f"  0 int GoogleUpdateSynchronization = {GUS.get_value(metadata['GoogleUpdateSynchronization'])}")
+            output.append(f"  0 int GoogleUpdateFrequency = {Guf.get_value(metadata['GoogleUpdateFrequency'])}")
+            output.append(f"  0 int GoogleInEditorCheckFrequency = {Guf.get_value(metadata['GoogleInEditorCheckFrequency'])}")
+            output.append(f"  0 int GoogleUpdateSynchronization = {Gus.get_value(metadata['GoogleUpdateSynchronization'])}")
             output.append(f"  0 float GoogleUpdateDelay = {int(metadata['GoogleUpdateDelay'])}")
 
             assets = metadata.get("Assets", {})["Array"]
@@ -406,15 +313,15 @@ class I2Manager:
                     output.append(f"      0 int m_FileID = {asset['m_FileID']}")
                     output.append(f"      0 SInt64 m_PathID = {asset['m_PathID']}")
 
-            self.make_backup()
         except Exception as e:
             raise e from e
         finally:
             return str("\n".join(output) + "\n")
 
-    def parse_json_dump(self, dump_content: Any):
+    @staticmethod
+    def parse_json_dump(dump_content: dict):
         result = {
-            "structure": {"import": FE.JSON},
+            "structure": {},
             "metadata": {},
             "terms": [],
             "languages": []
@@ -426,18 +333,18 @@ class I2Manager:
             "GoogleLiveSyncIsUptoDate": bool,
 
             "CaseInsensitiveTerms": bool,
-            "OnMissingTranslation": MTA,
+            "OnMissingTranslation": Mta,
             "mTerm_AppName": str,
 
             "IgnoreDeviceLanguage": bool,
-            "_AllowUnloadingLanguages": AUL,
+            "_AllowUnloadingLanguages": Aul,
             "Google_WebServiceURL": str,
             "Google_SpreadsheetKey": str,
             "Google_SpreadsheetName": str,
             "Google_LastUpdatedVersion": str,
-            "GoogleUpdateFrequency": GUF,
-            "GoogleInEditorCheckFrequency": GUF,
-            "GoogleUpdateSynchronization": GUS,
+            "GoogleUpdateFrequency": Guf,
+            "GoogleInEditorCheckFrequency": Guf,
+            "GoogleUpdateSynchronization": Gus,
             "GoogleUpdateDelay": float,
             "Assets": dict
         }
@@ -455,7 +362,7 @@ class I2Manager:
             lang_data = (
                 lang_dict["Name"],
                 lang_dict["Code"] or lang_dict["Name"].lower(),
-                LDF(lang_dict["Flags"])
+                Ldf(lang_dict["Flags"])
             )
             language_codes.append(lang_data[1])
             result["languages"].append({
@@ -467,7 +374,7 @@ class I2Manager:
         for term in dump_content["mSource"]["mTerms"]["Array"]:
             term_data = (
                 term["Term"],
-                TT(term["TermType"]),
+                Tt(term["TermType"]),
                 term.get("Description", ""),
                 term["Languages_Touch"]["Array"]
             )
@@ -496,19 +403,19 @@ class I2Manager:
     def build_json_dump(self):
         output = {}
         try:
-            def insert_metadata(parse_metadata, target):
+            def insert_metadata(parsing_metadata, target):
                 metadata = self.content.get("metadata", [])
-                for key, type_ in parse_metadata:
-                    if key in metadata:
-                        if issubclass(type_, (GUF, GUS, MTA, AUL)):
-                            target[key] = type_.get_value(metadata[key])
+                for name, type_ in parsing_metadata:
+                    if name in metadata:
+                        if issubclass(type_, (Aul, Guf, Gus, Mta)):
+                            target[name] = type_.get_value(metadata[name])
                         else:
-                            target[key] = type_(metadata[key])
+                            target[name] = type_(metadata[name])
 
             def build_term(t_dict):
                 term = {
                     "Term": t_dict["name"],
-                    "TermType": TT.get_value(t_dict["type"]),
+                    "TermType": Tt.get_value(t_dict["type"]),
                     "Languages": {"Array": []},
                     "Flags": {"Array": list(t_dict["flags"].values())},
                     "Languages_Touch": {"Array": t_dict["languages_touch"]}
@@ -524,43 +431,42 @@ class I2Manager:
                 return {
                     "Name": l_dict["name"],
                     "Code": l_dict["code"] if l_dict["code"] != l_dict["name"].lower() else "",
-                    "Flags": LDF.get_value(l_dict["flags"])
+                    "Flags": Ldf.get_value(l_dict["flags"])
                 }
 
-            parse_metadata = list({
-                "UserAgreesToHaveItOnTheScene": int,
-                "UserAgreesToHaveItInsideThePluginsFolder": int,
-                "GoogleLiveSyncIsUptoDate": int,
+            parse_metadata = [
+                ("UserAgreesToHaveItOnTheScene", int),
+                ("UserAgreesToHaveItInsideThePluginsFolder", int),
+                ("GoogleLiveSyncIsUptoDate", int),
 
-                "CaseInsensitiveTerms": int,
-                "OnMissingTranslation": MTA,
-                "mTerm_AppName": str,
+                ("CaseInsensitiveTerms", int),
+                ("OnMissingTranslation", Mta),
+                ("mTerm_AppName", str),
 
-                "IgnoreDeviceLanguage": int,
-                "_AllowUnloadingLanguages": AUL,
-                "Google_WebServiceURL": str,
-                "Google_SpreadsheetKey": str,
-                "Google_SpreadsheetName": str,
-                "Google_LastUpdatedVersion": str,
-                "GoogleUpdateFrequency": GUF,
-                "GoogleInEditorCheckFrequency": GUF,
-                "GoogleUpdateSynchronization": GUS,
-                "GoogleUpdateDelay": float,
-                "Assets": dict
-            }.items())
+                ("IgnoreDeviceLanguage", int),
+                ("_AllowUnloadingLanguages", Aul),
+                ("Google_WebServiceURL", str),
+                ("Google_SpreadsheetKey", str),
+                ("Google_SpreadsheetName", str),
+                ("Google_LastUpdatedVersion", str),
+                ("GoogleUpdateFrequency", Guf),
+                ("GoogleInEditorCheckFrequency", Guf),
+                ("GoogleUpdateSynchronization", Gus),
+                ("GoogleUpdateDelay", float),
+                ("Assets", dict)
+            ]
 
             for key, value in self.content.get("structure", {}).items():
-                if key != "import":
-                    output[key] = value
+                output[key] = value
 
             m_source = output.setdefault("mSource", {})
 
             insert_metadata(parse_metadata[:3], m_source)
 
             m_source["mTerms"] = {"Array": []}
-            for t_dict in self.content.get("terms", []):
+            for term_dict in self.content.get("terms", []):
                 m_source["mTerms"]["Array"].append(
-                    build_term(t_dict)
+                    build_term(term_dict)
                 )
 
             insert_metadata(parse_metadata[3:6], m_source)
@@ -572,7 +478,6 @@ class I2Manager:
                 )
 
             insert_metadata(parse_metadata[6:], m_source)
-            self.make_backup()
         except Exception as e:
             return str(e)
         finally:

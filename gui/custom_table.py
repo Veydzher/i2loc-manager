@@ -1,4 +1,5 @@
 from typing import Any, Sequence
+
 from PySide6.QtCore import (
     Qt, QTimer, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 )
@@ -7,14 +8,21 @@ from PySide6.QtWidgets import (
     QTableView, QSizePolicy, QAbstractScrollArea, QHeaderView, QAbstractButton,
     QLabel, QApplication, QStyledItemDelegate, QTextEdit
 )
-from utils.manager import manager
-from utils.enums import TermType, LanguageDataFlags as LDF
-from utils.helpers import check_language
+
 from gui.helpers import message_box
+from utils.enums import TermType, LanguageDataFlags as Ldf
+from utils.helpers import check_language
+from utils.manager import manager
+
 
 class CustomTableModel(QAbstractTableModel):
     def __init__(self, mw, terms, langs):
         super().__init__()
+        self.terms = None
+        self.langs = None
+        self.columns = None
+        self.lang_columns = None
+
         self.mw = mw
         self.undo_stack = QUndoStack()
         self.base_fields = [
@@ -63,7 +71,7 @@ class CustomTableModel(QAbstractTableModel):
         _, key = self.columns[column]
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
-            if key in (c[1] for c in self.base_fields):
+            if key in (column[1] for column in self.base_fields):
                 text = term.get(key, "")
                 if isinstance(text, TermType):
                     text = text.displayed
@@ -126,7 +134,7 @@ class CustomTableModel(QAbstractTableModel):
         index = self.index(row, column)
         self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
 
-    def add_language(self, name: str, code: str, flags: LDF, copy_code: str | None = ""):
+    def add_language(self, name: str, code: str, flags: Ldf, copy_code: str | None = ""):
         title, msg = check_language(name, code, flags, self.langs)
         if title and msg:
             message_box(self.mw, title, msg)
@@ -168,6 +176,7 @@ class CustomTableModel(QAbstractTableModel):
         })
         self.endInsertRows()
 
+
 class EditCommand(QUndoCommand):
     def __init__(self, model, row, column, values):
         super().__init__()
@@ -181,6 +190,7 @@ class EditCommand(QUndoCommand):
 
     def redo(self):
         self.model.apply_cell(self.row, self.column, self.new_value)
+
 
 class MultiLineDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -212,9 +222,12 @@ class MultiLineDelegate(QStyledItemDelegate):
         else:
             super().setModelData(editor, model, index)
 
+
 class CustomTable(QTableView):
     def __init__(self):
         super().__init__()
+        self.table_model = None
+
         self.default_row_height = 40
         self._rows_to_resize = []
         self._rows_to_resize_set = set()
@@ -308,7 +321,7 @@ class CustomTable(QTableView):
             return False
         return first <= row <= last
 
-    def _is_row_range_visibe(self, first, last):
+    def _is_row_range_visible(self, first, last):
         rect = self.viewport().rect()
         first_visible = self.rowAt(rect.top())
         last_visible = self.rowAt(rect.bottom())
@@ -332,10 +345,10 @@ class CustomTable(QTableView):
         if not self._rows_to_resize:
             self._resize_timer.stop()
 
-    def _on_data_changed(self, topLeft: QModelIndex | QPersistentModelIndex, bottomRight: QModelIndex | QPersistentModelIndex, _roles: Sequence[int]):
-        if topLeft and bottomRight:
-            if self._is_row_range_visibe(topLeft.row(), bottomRight.row()):
-                self._queue_rows(range(topLeft.row(), bottomRight.row() + 1))
+    def _on_data_changed(self, top_left: QModelIndex | QPersistentModelIndex, bottom_right: QModelIndex | QPersistentModelIndex, _roles: Sequence[int]):
+        if top_left and bottom_right:
+            if self._is_row_range_visible(top_left.row(), bottom_right.row()):
+                self._queue_rows(range(top_left.row(), bottom_right.row() + 1))
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Copy):
@@ -422,3 +435,4 @@ class CustomTable(QTableView):
         finally:
             if undo_stack:
                 undo_stack.endMacro()
+

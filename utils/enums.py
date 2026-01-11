@@ -1,5 +1,6 @@
 from enum import Enum, unique
 
+
 @unique
 class FileExtension(Enum):
     CSV = ".csv"
@@ -11,10 +12,12 @@ class FileExtension(Enum):
     def parse(cls, s: str):
         return cls[s.lstrip(".").upper()]
 
+
 @unique
 class FileSeperator(Enum):
     CSV = ","
     TSV = "\t"
+
 
 @unique
 class TermType(Enum):
@@ -46,6 +49,7 @@ class TermType(Enum):
     def titles(cls):
         return [e.displayed for e in cls]
 
+
 @unique
 class PluralType(Enum):
     ZERO = 0
@@ -54,6 +58,7 @@ class PluralType(Enum):
     FEW = 3
     MANY = 4
     PLURAL = 5
+
 
 @unique
 class LanguageDataFlags(Enum):
@@ -75,6 +80,7 @@ class LanguageDataFlags(Enum):
     @classmethod
     def titles(cls):
         return [e.displayed for e in cls]
+
 
 @unique
 class MissingTranslationAction(Enum):
@@ -99,6 +105,7 @@ class MissingTranslationAction(Enum):
     def titles(cls):
         return [e.displayed for e in cls]
 
+
 class AllowUnloadLanguages(Enum):
     NEVER = 0
     ONLY_IN_DEVICE = 1
@@ -119,6 +126,7 @@ class AllowUnloadLanguages(Enum):
     @classmethod
     def titles(cls):
         return [e.displayed for e in cls]
+
 
 @unique
 class GoogleUpdateFrequency(Enum):
@@ -145,6 +153,7 @@ class GoogleUpdateFrequency(Enum):
     @classmethod
     def titles(cls):
         return [e.displayed for e in cls]
+
 
 @unique
 class GoogleUpdateSynchronization(Enum):

@@ -1,17 +1,17 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QDialog, QVBoxLayout, QPushButton
+
 from utils.app_locales import fluent
+
 
 class About(QDialog):
     def __init__(self, mw):
         super().__init__(mw)
         self.ts = fluent.tr_batch([
-            "about-app", ("about-app-version", {"version": "1.0.1"}), "close-button",
+            "about-app", ("about-app-version", {"version": "1.0.2"}), "close-button",
             ("about-app-desc", {
-                "I2Localization":
-                    "<a href=http://inter-illusion.com/tools/i2-localization>I2 Localization</a>",
-                "UABEA":
-                    "<a href=https://github.com/nesrak1/UABEA>UABEA</a>"
+                "I2Localization": "<a href=http://inter-illusion.com/tools/i2-localization>I2 Localization</a>",
+                "UABEA": "<a href=https://github.com/nesrak1/UABEA>UABEA</a>"
             })
         ])
 
@@ -47,3 +47,4 @@ class About(QDialog):
         layout.addWidget(app_description)
         layout.addSpacing(20)
         layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignCenter)
+

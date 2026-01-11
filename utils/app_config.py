@@ -1,14 +1,18 @@
-import os
 import json
+import os
 import platform
-from typing import Any
 from pathlib import Path
+from typing import Any
+
 
 class AppConfig:
     def __init__(self):
         self.app_name = "I2 Localization Manager"
         self.company_name = "veydzh3r"
+
         self.app_dir = self.get_app_directory()
+        self.config_path = self.app_dir / "config.json"
+        self.recent_path = self.app_dir / "recent.json"
 
         self.recent = {}
         self.config = {}
@@ -50,7 +54,6 @@ class AppConfig:
         self.save_recent_files()
 
     def load_recent_files(self):
-        self.recent_path = self.app_dir / "recent.json"
         if self.recent_path.exists():
             with open(self.recent_path, "r", encoding="utf-8") as f:
                 self.recent = json.load(f)
@@ -68,7 +71,6 @@ class AppConfig:
             json.dump(self.recent, f, indent=2)
 
     def load_config(self):
-        self.config_path = self.app_dir / "config.json"
         if self.config_path.exists():
             with open(self.config_path, "r", encoding="utf-8") as f:
                 self.config = json.load(f)

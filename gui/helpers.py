@@ -1,10 +1,13 @@
-from PySide6.QtWidgets import QMessageBox, QDialogButtonBox, QApplication, QWidget, QMainWindow
+from typing import Any
+
 from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtGui import QIcon
-from typing import Any
+from PySide6.QtWidgets import QMessageBox, QDialogButtonBox, QApplication, QWidget, QMainWindow
+
 from utils.app_locales import ftr
-from utils.manager import manager
 from utils.helpers import pathfind
+from utils.manager import manager
+
 
 class FileWorker(QObject):
     finished = Signal(str, object)
@@ -23,11 +26,13 @@ class FileWorker(QObject):
     def run_import(self):
         pass
 
+
 def localize_buttons(box: QMessageBox | QDialogButtonBox):
     for button in box.buttons():
         button_name = box.standardButton(button).name
         if button_name:
             button.setText(ftr(f"{button_name.lower()}-button"))
+
 
 def message_box(
         parent: QWidget,
@@ -86,6 +91,7 @@ def message_box(
 
     return msg_box.exec()
 
+
 def report(error_text):
     issues_link = "https://github.com/Veydzher/i2loc-manager/issues"
     message_box(
@@ -94,6 +100,7 @@ def report(error_text):
         ftr("report-dev", {"link": f"[Issues]({issues_link})"}),
         localize=False
     )
+
 
 def set_window_size(window: QMainWindow):
     screen = QApplication.primaryScreen()
@@ -108,3 +115,4 @@ def set_window_size(window: QMainWindow):
     y = (screen_height - height) // 2
 
     window.setGeometry(x, y, width, height)
+

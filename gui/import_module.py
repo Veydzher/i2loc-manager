@@ -1,18 +1,21 @@
-import os
 import csv
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog, QDialog, QLabel, QComboBox, QProgressDialog, QVBoxLayout,
-    QGridLayout, QDialogButtonBox, QWidget, QScrollArea
+    QGridLayout, QDialogButtonBox, QWidget, QScrollArea, QHBoxLayout, QPushButton
 )
+
 from gui.helpers import message_box
 from utils.app_locales import fluent
-from utils.manager import manager
-from utils.helpers import normalise
 from utils.enums import (
-    FileExtension as FE,
-    FileSeperator as FS
+    FileExtension as Fe,
+    FileSeperator as Fs
 )
+from utils.helpers import normalise
+from utils.manager import manager
+
 
 class ImportModule:
     def __init__(self, main_window):
@@ -33,29 +36,28 @@ class ImportModule:
         self.import_languages()
 
     def import_languages(self):
-        path, _ = QFileDialog.getOpenFileName(
+        path = Path(QFileDialog.getOpenFileName(
             self.mw, self.ts["open-title"], "",
             f"{self.ts['all-files']} (*.*);;"
-            f"{self.ts['csv-file']} (*{FE.CSV.value});;"
-            f"{self.ts['tsv-file']} (*{FE.TSV.value})"
-        )
+            f"{self.ts['csv-file']} (*{Fe.CSV.value});;"
+            f"{self.ts['tsv-file']} (*{Fe.TSV.value})"
+        )[0])
 
-        if not os.path.isfile(path):
+        if not path.is_file():
             return
 
-        file_path = os.path.abspath(path)
-        file_name = os.path.basename(file_path)
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext not in [FE.CSV.value, FE.TSV.value]:
+        file_name = path.name
+        file_suffix = path.suffix
+        if file_suffix not in [Fe.CSV.value, Fe.TSV.value]:
             message_box(self.mw, "error", "error-invalid-file")
             return
 
         self.mw.status_bar_message(("importing-file-data", {"file_name": file_name}))
 
         try:
-            delimiter = FS[FE(file_ext).name].value
-            with open(file_path, "r", encoding="utf-8", newline="") as f:
-                reader = csv.reader(f, delimiter=delimiter)
+            delimiter = Fs[Fe(file_suffix).name].value
+            with open(path, "r", encoding="utf-8", newline="") as f1:
+                reader = csv.reader(f1, delimiter=delimiter)
                 headers = next(reader, [])
 
                 if not headers:
@@ -78,8 +80,8 @@ class ImportModule:
                     return
 
                 csv_data = []
-                with open(file_path, "r", encoding="utf-8", newline="") as f:
-                    reader = csv.DictReader(f, delimiter=delimiter)
+                with open(path, "r", encoding="utf-8", newline="") as f2:
+                    reader = csv.DictReader(f2, delimiter=delimiter)
                     for row in reader:
                         new_row = {
                             k: normalise(v)
@@ -192,6 +194,39 @@ class ImportModule:
             ok_button.setEnabled(any_selected)
             ok_button.setToolTip(self.ts["import-button-disabled"] if not any_selected else "")
 
+        def auto_map_languages():
+            for csv_lang, combo in mappings.items():
+                csv_lang_lower = csv_lang.lower()
+                csv_code = None
+
+                if "[" in csv_lang and "]" in csv_lang:
+                    csv_code = csv_lang.split("[")[1].split("]")[0].strip().lower()
+
+                best_match_index = 0
+                for i, lang in enumerate(langs):
+                    lang_lower = lang.lower()
+
+                    lang_code = None
+                    if "[" in lang and "]" in lang:
+                        lang_code = lang.split("[")[1].split("]")[0].strip().lower()
+
+                    if csv_code and lang_code and csv_code == lang_code:
+                        best_match_index = i + 1
+                        break
+
+                    lang_name = lang.split("[")[0].strip().lower() if "[" in lang else lang_lower
+                    csv_name = csv_lang.split("[")[0].strip().lower() if "[" in csv_lang else csv_lang_lower
+
+                    if csv_name == lang_name or csv_name in lang_name or lang_name in csv_name:
+                        best_match_index = i + 1
+                        break
+
+                combo.setCurrentIndex(best_match_index)
+
+        def clear_all_mappings():
+            for combo in mappings.values():
+                combo.setCurrentIndex(0)
+
         grid = QGridLayout()
         grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         grid_title = QGridLayout()
@@ -210,13 +245,7 @@ class ImportModule:
             for lang in langs:
                 combo.addItem(lang)
 
-            auto_index = 0
-            # for i, lang in enumerate(langs):
-            #     if csv_lang.lower() == lang.lower() or lang.lower() in csv_lang.lower():
-            #         auto_index = i + 1
-            #         break
-
-            combo.setCurrentIndex(auto_index)
+            combo.setCurrentIndex(0)
             grid.addWidget(combo, row, 1)
             mappings[csv_lang] = combo
             row += 1
@@ -225,9 +254,24 @@ class ImportModule:
         scroll_widget.setLayout(scroll_layout)
         scroll_area.setWidget(scroll_widget)
 
+        mapping_button_layout = QHBoxLayout()
+        auto_map_button = QPushButton(self.ts.get("auto-map-button", "Auto-Map"))
+        clear_button = QPushButton(self.ts.get("clear-mappings-button", "Clear All"))
+
+        auto_map_button.clicked.connect(auto_map_languages)
+        clear_button.clicked.connect(clear_all_mappings)
+
+        mapping_button_layout.addWidget(auto_map_button)
+        mapping_button_layout.addWidget(clear_button)
+        mapping_button_layout.addStretch()
+
         layout.addLayout(grid_title)
         layout.addWidget(scroll_area)
+        layout.addLayout(mapping_button_layout)
         layout.addWidget(button_box)
+
+        auto_map_languages()
+        update_dialog_button()
 
         lang_mapping = {}
         result = dialog.exec()
@@ -240,3 +284,4 @@ class ImportModule:
                         lang_mapping[csv_lang] = code
 
         return lang_mapping
+

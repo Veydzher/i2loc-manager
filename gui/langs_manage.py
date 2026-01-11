@@ -1,37 +1,45 @@
 import json
+import string
+
 from PySide6.QtCore import (
     Qt, QAbstractListModel, QModelIndex, QPersistentModelIndex
 )
+from PySide6.QtGui import QColor, QBrush, QCloseEvent
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QFormLayout,
     QLineEdit, QCheckBox, QRadioButton, QDialogButtonBox, QMessageBox,
     QListView, QAbstractItemView, QLabel, QPushButton
 )
-from utils.manager import manager
-from utils.app_locales import ftr
-from utils.enums import LanguageDataFlags as LDF
-from utils.helpers import pathfind, check_language
+
 from gui.helpers import message_box, localize_buttons
+from utils.app_locales import ftr
+from utils.enums import LanguageDataFlags as Ldf
+from utils.helpers import pathfind, check_language, validate_lang_code
+from utils.manager import manager
 
 with open(pathfind("assets\\languages.json"), "r", encoding="utf-8") as f:
     ISO_LANGUAGES = json.load(f)
 
+
 class Language:
-    def __init__(self, name: str, code: str, flags: LDF):
+    def __init__(self, name: str, code: str, flags: Ldf):
         self.name = name
         self.code = code
         self.flags = flags
         self.prev_code = code
+        self.is_modified = False
 
     def __str__(self):
-        return f"{self.name} [{self.code}]"
+        return f"{self.name} [{self.code}]" if not self.is_modified else f"{self.name} [{self.code}] *"
         # return f"{self.name} [{self.code}]" if self.code != self.name.lower() else self.name
+
 
 class LanguageListWidget(QListView):
     def __init__(self):
         super().__init__()
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setAlternatingRowColors(True)
+
 
 class LanguageModel(QAbstractListModel):
     def __init__(self, mw, languages):
@@ -52,8 +60,14 @@ class LanguageModel(QAbstractListModel):
         if not index.isValid() or index.row() >= len(self._languages):
             return None
 
+        lang = self._languages[index.row()]
+
         if role == Qt.ItemDataRole.DisplayRole:
-            return str(self._languages[index.row()])
+            return str(lang)
+
+        elif role == Qt.ItemDataRole.ForegroundRole:
+            if lang.flags == Ldf.DISABLED:
+                return QBrush(QColor(128, 128, 128))
 
         return None
 
@@ -74,8 +88,10 @@ class LanguageModel(QAbstractListModel):
 
     def move_language(self, from_index: int, to_index: int):
         if 0 <= from_index < len(self._languages) and 0 <= to_index < len(self._languages):
-            self.beginMoveRows(QModelIndex(), from_index, from_index,
-                            QModelIndex(), to_index + (1 if to_index > from_index else 0))
+            self.beginMoveRows(
+                QModelIndex(), from_index, from_index,
+                QModelIndex(), to_index + (1 if to_index > from_index else 0)
+            )
             lang = self._languages.pop(from_index)
             self._languages.insert(to_index, lang)
             self.endMoveRows()
@@ -90,6 +106,7 @@ class LanguageModel(QAbstractListModel):
 
     def language_exists(self, name: str, code: str):
         return any(lang.name == name or lang.code == code for lang in self._languages)
+
 
 class LanguageManager(QDialog):
     def __init__(self, main_window):
@@ -107,9 +124,8 @@ class LanguageManager(QDialog):
 
     def setup_ui(self):
         self.setWindowTitle(ftr("ml-title"))
-        self.setMinimumSize(600, 400)
+        self.setMinimumSize(600, 450)
         self.setMaximumSize(700, 500)
-        self.setSizeGripEnabled(False)
 
         # --- Layouts ---
         layout = QVBoxLayout(self)
@@ -151,7 +167,7 @@ class LanguageManager(QDialog):
 
         # self.edit_code.setMaxLength(5)
         self.edit_flag.setMaxVisibleItems(2)
-        self.edit_flag.addItems([ftr(f"lang-flag-{f.lower()}") for f in LDF.titles()])
+        self.edit_flag.addItems([ftr(f"lang-flag-{flag.lower()}") for flag in Ldf.titles()])
 
         details_layout.addRow(ftr("add-language-name"), self.edit_name)
         details_layout.addRow(ftr("add-language-code"), self.edit_code)
@@ -237,6 +253,7 @@ class LanguageManager(QDialog):
                 return
 
             new_lang = Language(data["name"], data["code"], data["flags"])
+            new_lang.is_modified = True
 
             copy_from = None
             if data["copy_from"] is not None:
@@ -258,8 +275,11 @@ class LanguageManager(QDialog):
 
         reply = message_box(
             self.mw, "question", ("confirm-language-removal", {"language": f"{lang.name} [{lang.code}]"}),
-            standard_buttons=(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No)
+            standard_buttons=(
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
         )
 
         if reply == QMessageBox.StandardButton.Yes:
@@ -284,8 +304,7 @@ class LanguageManager(QDialog):
 
     def move_down(self):
         current_index = self.language_list.currentIndex()
-        if (current_index.isValid() and
-            current_index.row() < self.model.rowCount() - 1):
+        if current_index.isValid() and current_index.row() < self.model.rowCount() - 1:
             row = current_index.row()
             if self.model.move_language(row, row + 1):
                 new_index = self.model.index(row + 1)
@@ -304,7 +323,7 @@ class LanguageManager(QDialog):
 
         self.edit_name.setText(lang.name)
         self.edit_code.setText(lang.code)
-        self.edit_flag.setCurrentIndex(LDF.get_value(lang.flags))
+        self.edit_flag.setCurrentIndex(Ldf.get_value(lang.flags))
 
         english_name = ISO_LANGUAGES.get(lang.code, {}).get("name")
         native_name = ISO_LANGUAGES.get(lang.code, {}).get("native")
@@ -320,41 +339,61 @@ class LanguageManager(QDialog):
         if not lang:
             return
 
+        original_lang = lang
+
         name = self.edit_name.text().strip()
         code = self.edit_code.text().strip()
-        flag = LDF(self.edit_flag.currentIndex())
+
+        valid_code = validate_lang_code(code)
+        if valid_code != code:
+            self.edit_code.setText(valid_code)
+            return
+
+        code = valid_code
+        flag = Ldf(self.edit_flag.currentIndex())
 
         for other in self.model.get_languages():
-            if other is not lang:
-                if other.code.lower() == code.lower():
-                    message_box(self.mw, "warning", ("warning-duplicate-code", {"code": code}))
-                    code = lang.prev_code
+            if other is not lang and other.code.lower() == code.lower():
+                message_box(self.mw, "warning", ("warning-duplicate-code", {"code": code}))
+                self.edit_code.setText(lang.prev_code)
+                return
 
         if code in ISO_LANGUAGES:
             english_name, native_name = ISO_LANGUAGES[code].values()
             if self.edit_native_checkbox.isChecked():
                 if name in (english_name, ""):
-                    name  = native_name
+                    name = native_name
             else:
                 if name in (native_name, ""):
-                    name  = english_name
+                    name = english_name
 
         self.edit_name.setText(name)
         self.edit_code.setText(code)
+
+        has_changed = (
+            name != original_lang.name or
+            code != original_lang.code or
+            flag != original_lang.flags
+        )
 
         lang.name = name
         lang.code = code
         lang.flags = flag
 
+        if has_changed:
+            lang.is_modified = True
+
         idx = self.model.index(current_index.row())
         self.model.dataChanged.emit(idx, idx)
+
         if len(code) >= 2:
             self.update_languages()
-            manager.update_code_entries(lang.prev_code, lang.code)
-            lang.prev_code = lang.code
+            manager.update_code_entries(lang.prev_code, code)
+            lang.prev_code = code
 
     def get_languages(self):
         return self.model.get_languages()
+
 
 class AddLanguageDialog(QDialog):
     def __init__(self, parent, existing_languages):
@@ -376,7 +415,8 @@ class AddLanguageDialog(QDialog):
         for code, data in sorted(ISO_LANGUAGES.items(), key=lambda x: x[1]["name"]):
             name = data["name"]
             native = data["native"]
-            self.lang_combo.addItem(f"{name} / {native} [{code}]", code)
+            display_text = f"{name} | {native} [{code}]" if name != native else f"{name} [{code}]"
+            self.lang_combo.addItem(display_text, code)
 
         layout.addWidget(self.lang_combo)
 
@@ -392,7 +432,7 @@ class AddLanguageDialog(QDialog):
         # self.code_edit.setMaxLength(5)
         self.native_checkbox.setEnabled(False)
         self.flag_edit.setMaxVisibleItems(2)
-        self.flag_edit.addItems(LDF.titles())
+        self.flag_edit.addItems(Ldf.titles())
 
         manual_layout.addRow(ftr("add-language-name"), self.name_edit)
         manual_layout.addRow(ftr("add-language-code"), self.code_edit)
@@ -421,8 +461,10 @@ class AddLanguageDialog(QDialog):
         layout.addWidget(copy_group)
 
         # --- Dialog Buttons ---
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
-                                 QDialogButtonBox.StandardButton.Cancel)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(self.validate_before_accept)
         button_box.rejected.connect(self.reject)
         localize_buttons(button_box)
@@ -441,9 +483,13 @@ class AddLanguageDialog(QDialog):
             self.name_edit.setText(native if checked else eng_name)
 
     def on_code_changed(self, code: str):
-        self.native_checkbox.setEnabled(code in ISO_LANGUAGES)
-        if code in ISO_LANGUAGES:
-            eng_name, native = ISO_LANGUAGES[code].values()
+        valid_code = validate_lang_code(code)
+        if valid_code != code:
+            self.code_edit.setText(valid_code)
+
+        self.native_checkbox.setEnabled(valid_code in ISO_LANGUAGES)
+        if valid_code in ISO_LANGUAGES:
+            eng_name, native = ISO_LANGUAGES[valid_code].values()
             self.name_edit.setText(native if self.native_checkbox.isChecked() else eng_name)
 
     def populate_copy_combo(self):
@@ -452,7 +498,7 @@ class AddLanguageDialog(QDialog):
             self.copy_combo.addItem(str(lang))
 
     def on_language_selected(self, index: int):
-        if index == 0: # Manual entry
+        if index == 0:  # Manual entry
             self.name_edit.clear()
             self.code_edit.clear()
         else:
@@ -470,7 +516,11 @@ class AddLanguageDialog(QDialog):
     def validate_before_accept(self):
         name = self.name_edit.text().strip()
         code = self.code_edit.text().strip()
-        flags = LDF(self.flag_edit.currentIndex())
+        flags = Ldf(self.flag_edit.currentIndex())
+
+        if code not in string.ascii_letters and code in string.digits:
+            message_box(self.mw, "warning", "warning-invalid-code-letters")
+            return
 
         for lang in self.existing_languages:
             if lang.code.lower() == code.lower():
@@ -487,7 +537,7 @@ class AddLanguageDialog(QDialog):
     def get_language_data(self):
         name = self.name_edit.text().strip()
         code = self.code_edit.text().strip()
-        flags = LDF(self.flag_edit.currentIndex())
+        flags = Ldf(self.flag_edit.currentIndex())
         copy_from = None
 
         if self.copy_radio.isChecked() and self.copy_combo.currentIndex() >= 0:
@@ -499,3 +549,4 @@ class AddLanguageDialog(QDialog):
             "flags": flags,
             "copy_from": copy_from
         }
+

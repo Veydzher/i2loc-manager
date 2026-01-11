@@ -1,4 +1,6 @@
-fluent.runtime>=0.4.0
+fluent>=0.10.0
 fluent.syntax>=0.19.0
+fluent.runtime>=0.4.0
+fluent-logger-pyramid>=0.0.3
 PySide6>=6.8
 nuitka>=2.8.4
