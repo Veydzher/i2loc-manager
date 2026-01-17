@@ -2,7 +2,7 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMessageBox, QDialogButtonBox, QApplication, QWidget, QMainWindow
+from PySide6.QtWidgets import QMessageBox, QDialogButtonBox, QApplication, QWidget, QMainWindow, QPushButton
 
 from utils.app_locales import ftr
 from utils.helpers import pathfind
@@ -32,6 +32,14 @@ def localize_buttons(box: QMessageBox | QDialogButtonBox):
         button_name = box.standardButton(button).name
         if button_name:
             button.setText(ftr(f"{button_name.lower()}-button"))
+
+
+def push_button(text: str, min_w: int = 0, min_h: int = 0, max_w: int = 100, max_h: int = 100):
+    button = QPushButton()
+    button.setMinimumSize(min_w, min_h)
+    button.setMaximumSize(max_w, max_h)
+    button.setText(ftr(text) if "-" in text else text)
+    return button
 
 
 def message_box(

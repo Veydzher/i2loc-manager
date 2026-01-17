@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QDialogButtonBox, QWidget, QScrollArea, QHBoxLayout, QPushButton
 )
 
-from gui.helpers import message_box
+from gui.helpers import message_box, push_button
 from utils.app_locales import fluent
 from utils.enums import (
     FileExtension as Fe,
@@ -29,6 +29,8 @@ class ImportModule:
             "imported-language-label",
             "import-to-language-label",
             "do-not-import-option",
+            "auto-map-button",
+            "clear-mappings-button",
             "import-button",
             "import-button-disabled",
             "cancel-button"
@@ -183,7 +185,11 @@ class ImportModule:
         scroll_layout = QVBoxLayout(scroll_widget)
 
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setMinimumSize(60, 30)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setMaximumSize(160, 35)
         button_box.button(QDialogButtonBox.StandardButton.Ok).setText(self.ts["import-button"])
+        button_box.button(QDialogButtonBox.StandardButton.Cancel).setMinimumSize(60, 30)
+        button_box.button(QDialogButtonBox.StandardButton.Cancel).setMaximumSize(160, 35)
         button_box.button(QDialogButtonBox.StandardButton.Cancel).setText(self.ts["cancel-button"])
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
@@ -255,8 +261,8 @@ class ImportModule:
         scroll_area.setWidget(scroll_widget)
 
         mapping_button_layout = QHBoxLayout()
-        auto_map_button = QPushButton(self.ts.get("auto-map-button", "Auto-Map"))
-        clear_button = QPushButton(self.ts.get("clear-mappings-button", "Clear All"))
+        auto_map_button = push_button(self.ts["auto-map-button"], 60, 30, 160, 35)
+        clear_button = push_button(self.ts["clear-mappings-button"], 60, 30, 160, 35)
 
         auto_map_button.clicked.connect(auto_map_languages)
         clear_button.clicked.connect(clear_all_mappings)

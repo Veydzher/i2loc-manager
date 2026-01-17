@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QLabel, QSpacerItem, QSizePolicy, QPushButton, QDialogButtonBox, QComboBox
 )
 
-from gui.helpers import message_box
+from gui.helpers import message_box, push_button
 from utils.app_locales import fluent, ftr
 from utils.enums import (
     FileExtension as Fe,
@@ -99,8 +99,8 @@ class ExportModule:
                     widget.SetChecked(state)
 
         button_layout = QHBoxLayout()
-        select_all_button = QPushButton(self.ts["select-all-button"])
-        deselect_all_button = QPushButton(self.ts["deselect-all-button"])
+        select_all_button = push_button(self.ts["select-all-button"], 60, 30, 160, 35)
+        deselect_all_button = push_button(self.ts["deselect-all-button"], 60, 30, 160, 35)
 
         for button, state in [(select_all_button, True), (deselect_all_button, False)]:
             button.clicked.connect(lambda _, s=state: set_all(s))
@@ -109,7 +109,11 @@ class ExportModule:
         layout.addLayout(button_layout)
 
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setMinimumSize(60, 30)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setMaximumSize(160, 35)
         button_box.button(QDialogButtonBox.StandardButton.Ok).setText(self.ts["export-button"])
+        button_box.button(QDialogButtonBox.StandardButton.Cancel).setMinimumSize(60, 30)
+        button_box.button(QDialogButtonBox.StandardButton.Cancel).setMaximumSize(160, 35)
         button_box.button(QDialogButtonBox.StandardButton.Cancel).setText(self.ts["cancel-button"])
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)

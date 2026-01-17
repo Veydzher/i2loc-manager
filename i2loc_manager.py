@@ -523,8 +523,9 @@ class I2ManagerUI(QMainWindow):
             application.setStyle(QStyleFactory.create(theme))
         except Exception as e:
             print(f"[ERROR] Error while setting '{theme}' style, defaulting to Fusion...\n", str(e))
-            application.setStyle(QStyleFactory.create("Fusion"))
-            config.set_config("theme", "Fusion")
+            theme = "Fusion"
+            application.setStyle(QStyleFactory.create(theme))
+            config.set_config("theme", theme)
 
         if theme == "Fusion":
             application.setStyleSheet("QComboBox { combobox-popup: 0; }")
