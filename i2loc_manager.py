@@ -404,7 +404,7 @@ class I2ManagerUI(QMainWindow):
         result = manager.save_dump_file(file_path)
 
         if result is True:
-            self.status_bar_message(("saved-file", {"file_path": str(file_path)}))
+            self.status_bar_message(("saved-file", {"file_path": str(file_path)}), 10000)
         else:
             message_box(self, "error", result)
 
@@ -431,7 +431,7 @@ class I2ManagerUI(QMainWindow):
 
         if result is True:
             manager.update_file_info(file_path)
-            self.status_bar_message(("saved-file", {"file_path": str(file_path)}))
+            self.status_bar_message(("saved-file", {"file_path": str(file_path)}), 10000)
         else:
             message_box(self, "error", result)
 
@@ -520,14 +520,16 @@ class I2ManagerUI(QMainWindow):
     @staticmethod
     def _set_theme_mode(theme: str):
         try:
-            application.setStyle(theme)
+            application.setStyle(QStyleFactory.create(theme))
         except Exception as e:
-            print("[ERROR] ", str(e))
-            application.setStyle("Fusion")
+            print(f"[ERROR] Error while setting '{theme}' style, defaulting to Fusion...\n", str(e))
+            application.setStyle(QStyleFactory.create("Fusion"))
             config.set_config("theme", "Fusion")
 
         if theme == "Fusion":
             application.setStyleSheet("QComboBox { combobox-popup: 0; }")
+        else:
+            application.setStyleSheet("QComboBox QAbstractItemView { background: palette(base); }")
 
 
 if __name__ == "__main__":
