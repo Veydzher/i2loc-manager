@@ -26,7 +26,7 @@ class About(QDialog):
 
         app_name = QLabel("<b>I2 Localization Manager</b>")
         app_version = QLabel(self.ts["about-app-version"])
-        app_author = QLabel("© 2025 <a href=https://github.com/Veydzher>veydzh3r</a>")
+        app_author = QLabel("© 2026 <a href=https://github.com/Veydzher>veydzh3r</a>")
         app_author.setOpenExternalLinks(True)
         app_author.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
 
