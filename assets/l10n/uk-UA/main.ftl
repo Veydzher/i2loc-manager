@@ -35,6 +35,16 @@ exit-app-tooltip = Вийти із застосунку.
 
 ## Edit section
 edit-menu-title = Редагувати
+undo-button = Скасувати
+undo-tooltip = Скасувати зміну.
+redo-button = Відновити
+redo-tooltip = Відновити зміну.
+copy-button = Копіювати
+copy-tooltip = Скопіювати вміст вибраного рядка.
+cut-button = Вирізати
+cut-tooltip = Вирізати вміст вибраного рядка.
+paste-button = Вставити
+paste-tooltip = Вставити вміст буфера обміну у вибраний рядок.
 refresh-table-button = Оновити таблицю
 refresh-table-tooltip = Оновити таблиця уручну.
 theme-menu = Тема

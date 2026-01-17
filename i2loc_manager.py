@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QThread
-from PySide6.QtGui import QIcon, QAction, QCloseEvent
+from PySide6.QtGui import QIcon, QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QMenu, QMessageBox, QVBoxLayout,
     QFileDialog, QLabel, QHBoxLayout, QWidget, QStyleFactory
@@ -77,14 +77,14 @@ class I2ManagerUI(QMainWindow):
         exit_app.triggered.connect(self.close)
         exit_app.setShortcut("Alt+F4")
 
-        file_menu.addAction(open_file)
-        file_menu.addMenu(recent_menu)
         file_menu.addActions([
+            open_file,
             save_file,
-            save_file_as,
-            file_menu.addSeparator(),
-            exit_app
+            save_file_as
         ])
+        file_menu.addMenu(recent_menu)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_app)
 
         # ====== Edit Menu ====== #
         edit_menu = menu_bar.addMenu(ftr("edit-menu-title"))
@@ -94,7 +94,38 @@ class I2ManagerUI(QMainWindow):
         refresh_table.triggered.connect(self.update_table)
         refresh_table.setShortcut("Ctrl+R")
 
+        undo_action = QAction(ftr("undo-button"), self)
+        undo_action.setStatusTip(ftr("undo-tooltip"))
+        undo_action.triggered.connect(self._undo_table)
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+
+        redo_action = QAction(ftr("redo-button"), self)
+        redo_action.setStatusTip(ftr("redo-tooltip"))
+        redo_action.triggered.connect(self._redo_table)
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+
+        copy_action = QAction(ftr("copy-button"), self)
+        copy_action.setStatusTip(ftr("copy-tooltip"))
+        copy_action.triggered.connect(self._copy_selection)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+
+        cut_action = QAction(ftr("cut-button"), self)
+        cut_action.setStatusTip(ftr("cut-tooltip"))
+        cut_action.triggered.connect(self._cut_selection)
+        cut_action.setShortcut(QKeySequence.StandardKey.Cut)
+
+        paste_action = QAction(ftr("paste-button"), self)
+        paste_action.setStatusTip(ftr("paste-tooltip"))
+        paste_action.triggered.connect(self._paste_selection)
+        paste_action.setShortcut(QKeySequence.StandardKey.Paste)
+
         edit_menu.addActions([
+            undo_action,
+            redo_action,
+            copy_action,
+            cut_action,
+            paste_action,
+            edit_menu.addSeparator(),
             refresh_table,
             edit_menu.addSeparator()
         ])
@@ -130,6 +161,11 @@ class I2ManagerUI(QMainWindow):
             recent_menu,
             save_file,
             save_file_as,
+            undo_action,
+            redo_action,
+            copy_action,
+            cut_action,
+            paste_action,
             refresh_table,
             export_translations,
             import_translations,
@@ -282,6 +318,36 @@ class I2ManagerUI(QMainWindow):
                 lang_subset = {code: name}
 
             self.custom_table.update_table(self, terms, lang_subset)
+
+    def _undo_table(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.table_model.undo_stack.undo()
+
+    def _redo_table(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.table_model.undo_stack.redo()
+
+    def _copy_selection(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.copy_selection()
+
+    def _cut_selection(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.cut_selection()
+
+    def _paste_selection(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.paste_selection()
 
     def open_file(self, path: str):
         path = Path(path)

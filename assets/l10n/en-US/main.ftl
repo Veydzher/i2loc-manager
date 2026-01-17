@@ -37,6 +37,16 @@ exit-app-tooltip = Exit the application.
 
 ## Edit section
 edit-menu-title = Edit
+undo-button = Undo
+undo-tooltip = Undo the change.
+redo-button = Redo
+redo-tooltip = Redo the change.
+copy-button = Copy
+copy-tooltip = Copy the content of selected row.
+cut-button = Cut
+cut-tooltip = Cut the content of selected row.
+paste-button = Paste
+paste-tooltip = Paste clipboard's entry to selected row.
 refresh-table-button = Refresh Table
 refresh-table-tooltip = Refresh the table manually.
 theme-menu = Theme
