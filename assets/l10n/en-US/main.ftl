@@ -31,7 +31,6 @@ save-button = Save
 save-tooltip = Save the UABEA dump file.
 save-as-button = Save As...
 save-as-tooltip = Save the UABEA dump file as...
-app-language-menu = Language
 exit-app-button = Exit
 exit-app-tooltip = Exit the application.
 
@@ -47,10 +46,16 @@ cut-button = Cut
 cut-tooltip = Cut the content of selected row.
 paste-button = Paste
 paste-tooltip = Paste clipboard's entry to selected row.
+
+
+## View section
+view-menu-title = View
 refresh-table-button = Refresh Table
 refresh-table-tooltip = Refresh the table manually.
 theme-menu = Theme
 theme-menu-tooltip = This theme is compatible with your OS.
+app-language-menu = Language
+
 
 ## Tools section
 tools-menu-title = Tools

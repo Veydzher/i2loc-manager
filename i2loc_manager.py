@@ -56,26 +56,30 @@ class I2ManagerUI(QMainWindow):
         file_menu = menu_bar.addMenu(ftr("file-menu-title"))
 
         open_file = QAction(ftr("open-button"), self)
+        open_file.setIcon(QIcon.fromTheme("document-open"))
         open_file.setStatusTip(ftr("open-tooltip"))
         open_file.triggered.connect(self._open_file_dialog)
-        open_file.setShortcut("Ctrl+O")
+        open_file.setShortcut(QKeySequence.StandardKey.Open)
+
+        save_file = QAction(ftr("save-button"), self)
+        save_file.setIcon(QIcon.fromTheme("document-save"))
+        save_file.setStatusTip(ftr("save-tooltip"))
+        save_file.triggered.connect(self._save_file)
+        save_file.setShortcut(QKeySequence.StandardKey.Save)
+
+        save_file_as = QAction(ftr("save-as-button"), self)
+        save_file_as.setIcon(QIcon.fromTheme("document-save-as"))
+        save_file_as.setStatusTip(ftr("save-as-tooltip"))
+        save_file_as.triggered.connect(self._save_file_as)
+        save_file_as.setShortcut(QKeySequence.StandardKey.SaveAs)
 
         recent_menu = self.setup_recent_menu()
 
-        save_file = QAction(ftr("save-button"), self)
-        save_file.setStatusTip(ftr("save-tooltip"))
-        save_file.triggered.connect(self._save_file)
-        save_file.setShortcut("Ctrl+S")
-
-        save_file_as = QAction(ftr("save-as-button"), self)
-        save_file_as.setStatusTip(ftr("save-as-tooltip"))
-        save_file_as.triggered.connect(self._save_file_as)
-        save_file_as.setShortcut("Ctrl+Shift+S")
-
         exit_app = QAction(ftr("exit-app-button"), self)
+        exit_app.setIcon(QIcon.fromTheme("application-exit"))
         exit_app.setStatusTip(ftr("exit-app-tooltip"))
         exit_app.triggered.connect(self.close)
-        exit_app.setShortcut("Alt+F4")
+        exit_app.setShortcut(QKeySequence("Alt+F4"))
 
         file_menu.addActions([
             open_file,
@@ -89,32 +93,32 @@ class I2ManagerUI(QMainWindow):
         # ====== Edit Menu ====== #
         edit_menu = menu_bar.addMenu(ftr("edit-menu-title"))
 
-        refresh_table = QAction(ftr("refresh-table-button"), self)
-        refresh_table.setStatusTip(ftr("refresh-table-tooltip"))
-        refresh_table.triggered.connect(self.update_table)
-        refresh_table.setShortcut("Ctrl+R")
-
         undo_action = QAction(ftr("undo-button"), self)
+        undo_action.setIcon(QIcon.fromTheme("edit-undo"))
         undo_action.setStatusTip(ftr("undo-tooltip"))
         undo_action.triggered.connect(self._undo_table)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
 
         redo_action = QAction(ftr("redo-button"), self)
+        redo_action.setIcon(QIcon.fromTheme("edit-redo"))
         redo_action.setStatusTip(ftr("redo-tooltip"))
         redo_action.triggered.connect(self._redo_table)
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
         copy_action = QAction(ftr("copy-button"), self)
+        copy_action.setIcon(QIcon.fromTheme("edit-copy"))
         copy_action.setStatusTip(ftr("copy-tooltip"))
         copy_action.triggered.connect(self._copy_selection)
         copy_action.setShortcut(QKeySequence.StandardKey.Copy)
 
         cut_action = QAction(ftr("cut-button"), self)
+        cut_action.setIcon(QIcon.fromTheme("edit-cut"))
         cut_action.setStatusTip(ftr("cut-tooltip"))
         cut_action.triggered.connect(self._cut_selection)
         cut_action.setShortcut(QKeySequence.StandardKey.Cut)
 
         paste_action = QAction(ftr("paste-button"), self)
+        paste_action.setIcon(QIcon.fromTheme("edit-paste"))
         paste_action.setStatusTip(ftr("paste-tooltip"))
         paste_action.triggered.connect(self._paste_selection)
         paste_action.setShortcut(QKeySequence.StandardKey.Paste)
@@ -124,13 +128,22 @@ class I2ManagerUI(QMainWindow):
             redo_action,
             copy_action,
             cut_action,
-            paste_action,
-            edit_menu.addSeparator(),
-            refresh_table,
-            edit_menu.addSeparator()
+            paste_action
         ])
-        edit_menu.addMenu(self.setup_theme_menu())
-        edit_menu.addMenu(self.setup_language_menu())
+
+        # ====== View Menu ====== #
+        view_menu = menu_bar.addMenu(ftr("view-menu-title"))
+
+        refresh_table = QAction(ftr("refresh-table-button"), self)
+        refresh_table.setIcon(QIcon.fromTheme("view-refresh"))
+        refresh_table.setStatusTip(ftr("refresh-table-tooltip"))
+        refresh_table.triggered.connect(self._update_table)
+        refresh_table.setShortcut(QKeySequence.StandardKey.Refresh)
+
+        view_menu.addAction(refresh_table)
+        view_menu.addSeparator()
+        view_menu.addMenu(self.setup_theme_menu())
+        view_menu.addMenu(self.setup_language_menu())
 
         # ====== Tool Menu ====== #
         tool_menu = menu_bar.addMenu(ftr("tools-menu-title"))
@@ -138,14 +151,17 @@ class I2ManagerUI(QMainWindow):
         export_translations = QAction(ftr("export-translations-button"), self)
         export_translations.setStatusTip(ftr("export-translations-tooltip"))
         export_translations.triggered.connect(lambda: ExportModule(self))
+        export_translations.setShortcut(QKeySequence("Ctrl+Shift+Q"))
 
         import_translations = QAction(ftr("import-translations-button"), self)
         import_translations.setStatusTip(ftr("import-translations-tooltip"))
         import_translations.triggered.connect(lambda: ImportModule(self))
+        import_translations.setShortcut(QKeySequence("Ctrl+Shift+W"))
 
         manage_langs = QAction(ftr("manage-languages-button"), self)
         manage_langs.setStatusTip(ftr("manage-languages-tooltip"))
         manage_langs.triggered.connect(lambda: LanguageManager(self))
+        manage_langs.setShortcut(QKeySequence("Ctrl+Shift+E"))
 
         tool_menu.addActions([
             export_translations,
@@ -175,6 +191,7 @@ class I2ManagerUI(QMainWindow):
     def setup_recent_menu(self):
         max_count = 8
         recent_menu = QMenu(ftr("open-recent-menu"), self)
+        recent_menu.setIcon(QIcon.fromTheme("document-open-recent"))
 
         recent_files = config.get_recent_files()
         if recent_files:
@@ -191,6 +208,7 @@ class I2ManagerUI(QMainWindow):
         clear_recent_button = QAction(ftr("clear-recent-button"), self)
         clear_recent_button.setStatusTip(ftr("clear-recent-tooltip"))
         clear_recent_button.triggered.connect(lambda: (config.clear_recent_files(), self._refresh_ui()))
+        clear_recent_button.setIcon(QIcon.fromTheme("edit-clear"))
         recent_menu.addAction(clear_recent_button)
 
         return recent_menu
@@ -200,6 +218,7 @@ class I2ManagerUI(QMainWindow):
         current_theme = config.get_config("theme", "Fusion")
 
         theme_menu = QMenu(ftr("theme-menu"), self)
+        theme_menu.setIcon(QIcon.fromTheme("preferences-desktop-accessibility"))
         theme_menu.setToolTip(ftr("theme-menu-tooltip"))
 
         for factory_theme in factory_themes:
@@ -225,6 +244,7 @@ class I2ManagerUI(QMainWindow):
 
     def setup_language_menu(self):
         language_menu = QMenu(ftr("app-language-menu"), self)
+        language_menu.setIcon(QIcon.fromTheme("preferences-desktop-locale"))
 
         current_locale = fluent.current_locale
         available_locales = fluent.get_languages()
@@ -258,7 +278,7 @@ class I2ManagerUI(QMainWindow):
 
         self.lang_selector = QComboBox()
         self.lang_selector.setFixedSize(200, 25)
-        self.lang_selector.textActivated.connect(self.update_table)
+        self.lang_selector.textActivated.connect(self._update_table)
 
         self.term_count = QLabel()
 
@@ -288,12 +308,12 @@ class I2ManagerUI(QMainWindow):
             else:
                 self.lang_selector.setCurrentIndex(0)
 
-        self.update_table()
+        self._update_table()
         self.term_count.setText(
             ftr("term-count-label", {"count": manager.term_count()})
         )
 
-    def update_table(self):
+    def _update_table(self):
         if not manager.content:
             message_box(self, "warning", "warning-no-file")
             return
@@ -352,7 +372,7 @@ class I2ManagerUI(QMainWindow):
     def open_file(self, path: str):
         path = Path(path)
 
-        if not path.is_file():
+        if not path.exists():
             message_box(self, "warning", ("warning-file-not-found", {"file_path": str(path)}))
             if str(path) in config.get_recent_files():
                 config.remove_recent_file(str(path))

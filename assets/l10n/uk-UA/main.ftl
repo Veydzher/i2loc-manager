@@ -31,7 +31,6 @@ save-button = Зберегти
 save-tooltip = Зберегти дамп файл UABEA.
 save-as-button = Зберегти як...
 save-as-tooltip = Зберегти дамп файл UABEA як...
-app-language-menu = Мова
 exit-app-button = Вихід
 exit-app-tooltip = Вийти із застосунку.
 
@@ -47,10 +46,16 @@ cut-button = Вирізати
 cut-tooltip = Вирізати вміст вибраного рядка.
 paste-button = Вставити
 paste-tooltip = Вставити вміст буфера обміну у вибраний рядок.
+
+
+## View section
+view-menu-title = Вигляд
 refresh-table-button = Оновити таблицю
-refresh-table-tooltip = Оновити таблиця уручну.
+refresh-table-tooltip = Оновити таблиця вручну.
 theme-menu = Тема
 theme-menu-tooltip = Ця тема сумісна з вашою ОС.
+app-language-menu = Мова
+
 
 ## Tools section
 tools-menu-title = Інструменти
