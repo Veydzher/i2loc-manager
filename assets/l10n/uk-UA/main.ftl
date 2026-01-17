@@ -119,7 +119,7 @@ error-processing-term = Помилка опрацювання терміну №
 error-export-languages = Помилка експортування мов: {$error}
 info-success-export = Успішно експортовано {$translation_num ->
     [one] {$translation_num} переклад
-    [few] {translation_num} переклади
+    [few] {$translation_num} переклади
     *[other] {$translation_num} перекладів
 } для {$language_num ->
     [one] {$language_num} мови
@@ -135,7 +135,7 @@ import-translations-title = Імпортувати переклади
 import-select-languages = Оберіть мови, які бажаєте імпортувати:
 imported-language-label = <b>Імпортована мова</b>
 import-to-language-label = <b>Цільова мова</b>
-auto-map-button = Авто. мапувати
+auto-map-button = Авто. впорядкувати
 clear-mappings-button = Зняти всі
 do-not-import-option = Не імпортувати
 import-button = Імпортувати

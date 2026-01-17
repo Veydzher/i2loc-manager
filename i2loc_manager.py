@@ -1,6 +1,6 @@
 import sys
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QThread
 from PySide6.QtGui import QIcon, QAction, QCloseEvent
@@ -20,7 +20,6 @@ from gui.helpers import (
 )
 from gui.import_module import ImportModule
 from gui.langs_manage import LanguageManager
-
 from utils.app_config import config
 from utils.app_locales import fluent, ftr
 from utils.enums import FileExtension as Fe
@@ -65,8 +64,13 @@ class I2ManagerUI(QMainWindow):
 
         save_file = QAction(ftr("save-button"), self)
         save_file.setStatusTip(ftr("save-tooltip"))
-        save_file.triggered.connect(self.save_file)
+        save_file.triggered.connect(self._save_file)
         save_file.setShortcut("Ctrl+S")
+
+        save_file_as = QAction(ftr("save-as-button"), self)
+        save_file_as.setStatusTip(ftr("save-as-tooltip"))
+        save_file_as.triggered.connect(self._save_file_as)
+        save_file_as.setShortcut("Ctrl+Shift+S")
 
         exit_app = QAction(ftr("exit-app-button"), self)
         exit_app.setStatusTip(ftr("exit-app-tooltip"))
@@ -77,6 +81,7 @@ class I2ManagerUI(QMainWindow):
         file_menu.addMenu(recent_menu)
         file_menu.addActions([
             save_file,
+            save_file_as,
             file_menu.addSeparator(),
             exit_app
         ])
@@ -124,6 +129,7 @@ class I2ManagerUI(QMainWindow):
             open_file,
             recent_menu,
             save_file,
+            save_file_as,
             refresh_table,
             export_translations,
             import_translations,
@@ -302,7 +308,21 @@ class I2ManagerUI(QMainWindow):
         self.config_actions[1].setDisabled(True)
         self.temp_thread.start()
 
-    def save_file(self):
+    def _save_file(self):
+        if not manager.content:
+            message_box(self, "warning", "warning-no-file")
+            return
+
+        file_path = manager.file_path
+        self.status_bar_message(("saving-file", {"file_path": str(file_path)}))
+        result = manager.save_dump_file(file_path)
+
+        if result is True:
+            self.status_bar_message(("saved-file", {"file_path": str(file_path)}))
+        else:
+            message_box(self, "error", result)
+
+    def _save_file_as(self):
         if not manager.content:
             message_box(self, "warning", "warning-no-file")
             return
@@ -313,7 +333,7 @@ class I2ManagerUI(QMainWindow):
         )
 
         path, _ = QFileDialog.getSaveFileName(
-            self, ftr("save-title"), f"{manager.file_name}_dump", extensions
+            self, ftr("save-title"), f"{manager.file_name}-NEW", extensions
         )
 
         if not path:
@@ -322,7 +342,9 @@ class I2ManagerUI(QMainWindow):
         file_path = Path(path)
         self.status_bar_message(("saving-file", {"file_path": str(file_path)}))
         result = manager.save_dump_file(file_path)
+
         if result is True:
+            manager.update_file_info(file_path)
             self.status_bar_message(("saved-file", {"file_path": str(file_path)}))
         else:
             message_box(self, "error", result)
@@ -355,7 +377,7 @@ class I2ManagerUI(QMainWindow):
                 )
 
             if reply == QMessageBox.StandardButton.Yes:
-                self.save_file()
+                self._save_file_as()
                 if manager.is_modified():
                     return
             elif reply == QMessageBox.StandardButton.Cancel:

@@ -39,6 +39,13 @@ class I2Manager:
     def make_backup(self):
         self.backup = deepcopy(self.content)
 
+    def update_file_info(self, file_path: Path | str):
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+
+        self.file_path = file_path
+        self.file_name = file_path.stem
+
     def get_languages(self):
         return deepcopy(self.content.get("languages", []))
 
@@ -102,9 +109,8 @@ class I2Manager:
 
             output_content = self.parse_json_dump(content)
 
-            self.file_path = path
-            self.file_name = path.stem
             self.content = output_content
+            self.update_file_info(path)
             self.make_backup()
             return True
         except (OSError, KeyError, MemoryError, PermissionError) as e:
