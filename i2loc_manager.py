@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QThread
-from PySide6.QtGui import QIcon, QAction, QCloseEvent, QKeySequence
+from PySide6.QtGui import QIcon, QAction, QCloseEvent, QKeySequence, QDropEvent, QDragEnterEvent
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QMenu, QMessageBox, QVBoxLayout,
     QFileDialog, QLabel, QHBoxLayout, QWidget, QStyleFactory
@@ -37,6 +37,7 @@ class I2ManagerUI(QMainWindow):
         self.temp_thread = None
         self.worker = None
 
+        self.setAcceptDrops(True)
         self.setMinimumSize(800, 600)
         self.setWindowTitle("I2 Localization Manager")
         self.setWindowIcon(QIcon(pathfind("assets\\icon.ico")))
@@ -352,39 +353,21 @@ class I2ManagerUI(QMainWindow):
             self.custom_table.update_table(self, terms, lang_subset)
 
     def _undo_edit(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
-        self.custom_table.table_model.undo_stack.undo()
+        self.custom_table.undo_edit()
 
     def _redo_edit(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
-        self.custom_table.table_model.undo_stack.redo()
+        self.custom_table.redo_edit()
 
     def _cut_selection(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
         self.custom_table.cut_selection()
 
     def _copy_selection(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
         self.custom_table.copy_selection()
 
     def _paste_selection(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
         self.custom_table.paste_selection()
 
     def _delete_selection(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
         self.custom_table.delete_selection()
 
     def open_file(self, path: str):
@@ -463,6 +446,44 @@ class I2ManagerUI(QMainWindow):
             args = None
 
         return self.statusBar().showMessage(ftr(text, args), timeout)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            valid_extensions = [Fe.TXT.value, Fe.JSON.value]
+            urls = event.mimeData().urls()
+
+            for url in urls:
+                file_path = url.toLocalFile()
+                if any(file_path.endswith(ext) for ext in valid_extensions):
+                    event.acceptProposedAction()
+                    return
+
+            event.ignore()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            valid_extensions = [Fe.TXT.value, Fe.JSON.value]
+
+            for url in urls:
+                file_path = url.toLocalFile()
+                if any(file_path.endswith(ext) for ext in valid_extensions):
+                    event.acceptProposedAction()
+                    self.open_file(file_path)
+                    return
+
+            message_box(self, "error", "error-invalid-file")
+            event.ignore()
+        else:
+            event.ignore()
 
     def closeEvent(self, event: QCloseEvent):
         if not manager.content:

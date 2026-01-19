@@ -38,7 +38,7 @@ class ExportModule:
 
         path = QFileDialog.getSaveFileName(
             self.mw, self.ts["save-title"],
-            f"{manager.file_name}-exported",
+            f"{manager.file_name}-EXPORT",
             f"{self.ts['csv-file']} (*{Fe.CSV.value});;"
             f"{self.ts['tsv-file']} (*{Fe.TSV.value})"
         )[0]

@@ -121,18 +121,19 @@ class I2Manager:
             if isinstance(file_path, str):
                 file_path = Path(file_path)
 
-            with open(file_path, "w+", encoding="utf-8") as f:
-                suffix = Fe.parse(file_path.suffix)
-                if suffix is Fe.TXT:
-                    output = self.build_txt_dump()
-                elif suffix is Fe.JSON:
-                    output = self.build_json_dump()
-                else:
-                    raise InvalidExtensionError
+            suffix = Fe.parse(file_path.suffix)
+            if suffix is Fe.TXT:
+                output = self.build_txt_dump()
+            elif suffix is Fe.JSON:
+                output = self.build_json_dump()
+            else:
+                raise InvalidExtensionError
 
-                self.make_backup()
+            with open(file_path, "w+", encoding="utf-8") as f:
                 f.write(output)
-                return True
+
+            self.make_backup()
+            return True
         except (FileNotFoundError, PermissionError) as e:
             return "error-file-access", {"error": str(e)}
         except TypeError as e:
@@ -249,7 +250,7 @@ class I2Manager:
                 output.append(f"    [{i}]")
                 output.append("     0 TermData data")
                 output.append(f"      1 string Term = \"{term['name']}\"")
-                output.append(f"      0 int TermType = {Tt.get_value(term['type'])}")
+                output.append(f"      0 int TermType = {Tt[term['type']]}")
                 if term["desc"]:
                     output.append(f"      1 string Description = \"{term['desc']}\"")
 
@@ -282,7 +283,7 @@ class I2Manager:
                     output.append(f"         1 string data = \"{touch}\"")
 
             output.append(f"  1 UInt8 CaseInsensitiveTerms = {int(metadata['CaseInsensitiveTerms'])}")
-            output.append(f"  0 int OnMissingTranslation = {Mta.get_value(metadata['OnMissingTranslation'])}")
+            output.append(f"  0 int OnMissingTranslation = {Mta[metadata['OnMissingTranslation']]}")
             output.append(f"  1 string mTerm_AppName = \"{metadata['mTerm_AppName']}\"")
 
             output.append("  0 LanguageData mLanguages")
@@ -294,17 +295,17 @@ class I2Manager:
                 output.append("     0 LanguageData data")
                 output.append(f"      1 string Name = \"{lang['name']}\"")
                 output.append(f"      1 string Code = \"{lang['code']}\"")
-                output.append(f"      1 UInt8 Flags = {Ldf.get_value(lang['flags'])}")
+                output.append(f"      1 UInt8 Flags = {Ldf[lang['flags']]}")
 
             output.append(f"  1 UInt8 IgnoreDeviceLanguage = {int(metadata['IgnoreDeviceLanguage'])}")
-            output.append(f"  0 int _AllowUnloadingLanguages = {Aul.get_value(metadata['_AllowUnloadingLanguages'])}")
+            output.append(f"  0 int _AllowUnloadingLanguages = {Aul[metadata['_AllowUnloadingLanguages']]}")
             output.append(f"  1 string Google_WebServiceURL = \"{metadata['Google_WebServiceURL']}\"")
             output.append(f"  1 string Google_SpreadsheetKey = \"{metadata['Google_SpreadsheetKey']}\"")
             output.append(f"  1 string Google_SpreadsheetName = \"{metadata['Google_SpreadsheetName']}\"")
             output.append(f"  1 string Google_LastUpdatedVersion = \"{metadata['Google_LastUpdatedVersion']}\"")
-            output.append(f"  0 int GoogleUpdateFrequency = {Guf.get_value(metadata['GoogleUpdateFrequency'])}")
-            output.append(f"  0 int GoogleInEditorCheckFrequency = {Guf.get_value(metadata['GoogleInEditorCheckFrequency'])}")
-            output.append(f"  0 int GoogleUpdateSynchronization = {Gus.get_value(metadata['GoogleUpdateSynchronization'])}")
+            output.append(f"  0 int GoogleUpdateFrequency = {Guf[metadata['GoogleUpdateFrequency']]}")
+            output.append(f"  0 int GoogleInEditorCheckFrequency = {Guf[metadata['GoogleInEditorCheckFrequency']]}")
+            output.append(f"  0 int GoogleUpdateSynchronization = {Gus[metadata['GoogleUpdateSynchronization']]}")
             output.append(f"  0 float GoogleUpdateDelay = {int(metadata['GoogleUpdateDelay'])}")
 
             assets = metadata.get("Assets", {})["Array"]
@@ -414,14 +415,14 @@ class I2Manager:
                 for name, type_ in parsing_metadata:
                     if name in metadata:
                         if issubclass(type_, (Aul, Guf, Gus, Mta)):
-                            target[name] = type_.get_value(metadata[name])
+                            target[name] = type_[metadata[name]]
                         else:
                             target[name] = type_(metadata[name])
 
             def build_term(t_dict):
                 term = {
                     "Term": t_dict["name"],
-                    "TermType": Tt.get_value(t_dict["type"]),
+                    "TermType": Tt[t_dict["type"]],
                     "Languages": {"Array": []},
                     "Flags": {"Array": list(t_dict["flags"].values())},
                     "Languages_Touch": {"Array": t_dict["languages_touch"]}
@@ -437,7 +438,7 @@ class I2Manager:
                 return {
                     "Name": l_dict["name"],
                     "Code": l_dict["code"] if l_dict["code"] != l_dict["name"].lower() else "",
-                    "Flags": Ldf.get_value(l_dict["flags"])
+                    "Flags": Ldf[l_dict["flags"]]
                 }
 
             parse_metadata = [
@@ -488,5 +489,6 @@ class I2Manager:
             return str(e)
         finally:
             return json.dumps(output, ensure_ascii=False, indent=2)
+
 
 manager = I2Manager()

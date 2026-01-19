@@ -183,7 +183,7 @@ class AppLocale:
                         if isinstance(entry, ast.Message) and entry.id.name == "language-name":
                             value = ""
 
-                            for element in entry.value.elements: # type: ignore
+                            for element in entry.value.elements:  # type: ignore
                                 if isinstance(element, ast.TextElement):
                                     value += element.value
 
@@ -193,6 +193,7 @@ class AppLocale:
             raise Exception(f"[LOCALE] {str(e)}") from e
 
         return languages
+
 
 fluent = AppLocale()
 ftr = fluent.tr

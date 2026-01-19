@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog, QDialog, QLabel, QComboBox, QProgressDialog, QVBoxLayout,
-    QGridLayout, QDialogButtonBox, QWidget, QScrollArea, QHBoxLayout, QPushButton
+    QGridLayout, QDialogButtonBox, QWidget, QScrollArea, QHBoxLayout
 )
 
 from gui.helpers import message_box, push_button

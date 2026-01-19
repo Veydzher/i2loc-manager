@@ -179,10 +179,12 @@ class CustomTableModel(QAbstractTableModel):
         self.endInsertRows()
 
     def _enable_undo(self, value: bool):
-        self.mw.config_actions[4].setEnabled(value)
+        if self.mw.config_actions[4]:
+            self.mw.config_actions[4].setEnabled(value)
 
     def _enable_redo(self, value: bool):
-        self.mw.config_actions[5].setEnabled(value)
+        if self.mw.config_actions[5]:
+            self.mw.config_actions[5].setEnabled(value)
 
 
 class EditCommand(QUndoCommand):
@@ -359,16 +361,16 @@ class CustomTable(QTableView):
                 self._queue_rows(range(top_left.row(), bottom_right.row() + 1))
 
     def keyPressEvent(self, event):
-        if event.matches(QKeySequence.StandardKey.Copy):
-            self.copy_selection()
-        elif event.matches(QKeySequence.StandardKey.Cut):
+        if event.matches(QKeySequence.StandardKey.Cut):
             self.cut_selection()
+        elif event.matches(QKeySequence.StandardKey.Copy):
+            self.copy_selection()
         elif event.matches(QKeySequence.StandardKey.Paste):
             self.paste_selection()
         elif event.matches(QKeySequence.StandardKey.Undo):
-            self.table_model.undo_stack.undo()
+            self.undo_edit()
         elif event.matches(QKeySequence.StandardKey.Redo):
-            self.table_model.undo_stack.redo()
+            self.redo_edit()
         elif event.key() == Qt.Key.Key_Tab and self.currentIndex().column() == self.table_model.columnCount() - 1:
             self.model().insertColumn(self.table_model.columnCount())
         elif event.key() == Qt.Key.Key_Return and self.currentIndex().row() == self.table_model.rowCount() - 1:
@@ -376,7 +378,22 @@ class CustomTable(QTableView):
         else:
             super().keyPressEvent(event)
 
+    def undo_edit(self):
+        if not self.table_model:
+            return
+
+        self.table_model.undo_stack.undo()
+
+    def redo_edit(self):
+        if not self.table_model:
+            return
+
+        self.table_model.undo_stack.redo()
+
     def cut_selection(self):
+        if not self.table_model:
+            return
+
         selection = self.selectionModel().selectedIndexes()
         if not selection:
             return
@@ -394,8 +411,7 @@ class CustomTable(QTableView):
 
         QApplication.clipboard().setText(cut_text.strip())
 
-        model = self.model()
-        undo_stack = model.undo_stack
+        undo_stack = self.table_model.undo_stack
 
         if undo_stack:
             undo_stack.beginMacro("Cut")
@@ -406,14 +422,19 @@ class CustomTable(QTableView):
                     old_value = index.data()
                     if old_value:
                         if undo_stack:
-                            undo_stack.push(EditCommand(model, index.row(), index.column(), (old_value, "")))
+                            undo_stack.push(
+                                EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                            )
                         else:
-                            model.setData(index, "", Qt.ItemDataRole.EditRole)
+                            self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
 
     def copy_selection(self):
+        if not self.table_model:
+            return
+
         selection = self.selectionModel().selectedIndexes()
         if not selection:
             return
@@ -432,8 +453,9 @@ class CustomTable(QTableView):
         QApplication.clipboard().setText(copied_text.strip())
 
     def paste_selection(self):
-        model = self.model()
-        undo_stack = self.table_model.undo_stack or None
+        if not self.table_model:
+            return
+
         clipboard = QApplication.clipboard().text()
         if not clipboard:
             return
@@ -446,6 +468,7 @@ class CustomTable(QTableView):
         start_row = min(index.row() for index in selected)
         start_column = min(index.column() for index in selected)
 
+        undo_stack = self.table_model.undo_stack
         if undo_stack:
             undo_stack.beginMacro("Paste")
 
@@ -459,9 +482,11 @@ class CustomTable(QTableView):
                     if old_value != cell_value:
                         if index.flags() & Qt.ItemFlag.ItemIsEditable:
                             if undo_stack:
-                                undo_stack.push(EditCommand(model, index.row(), index.column(), (old_value, cell_value)))
+                                undo_stack.push(
+                                    EditCommand(self.table_model, index.row(), index.column(), (old_value, cell_value))
+                                )
                             else:
-                               model.setData(index, cell_value)
+                               self.table_model.setData(index, cell_value)
             else:
                 for row_offset, line in enumerate(lines):
                     cells = line.split("\t")
@@ -469,32 +494,35 @@ class CustomTable(QTableView):
                         row = start_row + row_offset
                         column = start_column + column_offset
 
-                        if row >= model.rowCount() or column >= model.columnCount():
+                        if row >= self.table_model.rowCount() or column >= self.table_model.columnCount():
                             continue
 
-                        index = model.index(row, column)
+                        index = self.table_model.index(row, column)
                         old_value = index.data()
 
                         if old_value != cell_value:
                             if index.flags() & Qt.ItemFlag.ItemIsEditable:
                                 if undo_stack:
-                                    undo_stack.push(EditCommand(model, row, column, (old_value, cell_value)))
+                                    undo_stack.push(
+                                        EditCommand(self.table_model, row, column, (old_value, cell_value))
+                                    )
                                 else:
-                                    model.setData(index, cell_value)
+                                    self.table_model.setData(index, cell_value)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
 
     def delete_selection(self):
+        if not self.table_model:
+            return
+
         selection = self.selectionModel().selectedIndexes()
         if not selection:
             return
 
         selection = sorted(selection, key=lambda x: (x.row(), x.column()))
 
-        model = self.model()
-        undo_stack = model.undo_stack
-
+        undo_stack = self.table_model.undo_stack
         if undo_stack:
             undo_stack.beginMacro("Delete")
 
@@ -504,9 +532,11 @@ class CustomTable(QTableView):
                     old_value = index.data()
                     if old_value:
                         if undo_stack:
-                            undo_stack.push(EditCommand(model, index.row(), index.column(), (old_value, "")))
+                            undo_stack.push(
+                                EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                            )
                         else:
-                            model.setData(index, "", Qt.ItemDataRole.EditRole)
+                            self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()

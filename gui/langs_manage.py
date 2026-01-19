@@ -4,7 +4,7 @@ import string
 from PySide6.QtCore import (
     Qt, QAbstractListModel, QModelIndex, QPersistentModelIndex
 )
-from PySide6.QtGui import QColor, QBrush, QCloseEvent
+from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QFormLayout,
     QLineEdit, QCheckBox, QRadioButton, QDialogButtonBox, QMessageBox,
@@ -323,7 +323,7 @@ class LanguageManager(QDialog):
 
         self.edit_name.setText(lang.name)
         self.edit_code.setText(lang.code)
-        self.edit_flag.setCurrentIndex(Ldf.get_value(lang.flags))
+        self.edit_flag.setCurrentIndex(Ldf[lang.flags])
 
         english_name = ISO_LANGUAGES.get(lang.code, {}).get("name")
         native_name = ISO_LANGUAGES.get(lang.code, {}).get("native")
