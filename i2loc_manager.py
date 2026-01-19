@@ -96,20 +96,14 @@ class I2ManagerUI(QMainWindow):
         undo_action = QAction(ftr("undo-button"), self)
         undo_action.setIcon(QIcon.fromTheme("edit-undo"))
         undo_action.setStatusTip(ftr("undo-tooltip"))
-        undo_action.triggered.connect(self._undo_table)
+        undo_action.triggered.connect(self._undo_edit)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
 
         redo_action = QAction(ftr("redo-button"), self)
         redo_action.setIcon(QIcon.fromTheme("edit-redo"))
         redo_action.setStatusTip(ftr("redo-tooltip"))
-        redo_action.triggered.connect(self._redo_table)
+        redo_action.triggered.connect(self._redo_edit)
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-
-        copy_action = QAction(ftr("copy-button"), self)
-        copy_action.setIcon(QIcon.fromTheme("edit-copy"))
-        copy_action.setStatusTip(ftr("copy-tooltip"))
-        copy_action.triggered.connect(self._copy_selection)
-        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
 
         cut_action = QAction(ftr("cut-button"), self)
         cut_action.setIcon(QIcon.fromTheme("edit-cut"))
@@ -117,18 +111,31 @@ class I2ManagerUI(QMainWindow):
         cut_action.triggered.connect(self._cut_selection)
         cut_action.setShortcut(QKeySequence.StandardKey.Cut)
 
+        copy_action = QAction(ftr("copy-button"), self)
+        copy_action.setIcon(QIcon.fromTheme("edit-copy"))
+        copy_action.setStatusTip(ftr("copy-tooltip"))
+        copy_action.triggered.connect(self._copy_selection)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+
         paste_action = QAction(ftr("paste-button"), self)
         paste_action.setIcon(QIcon.fromTheme("edit-paste"))
         paste_action.setStatusTip(ftr("paste-tooltip"))
         paste_action.triggered.connect(self._paste_selection)
         paste_action.setShortcut(QKeySequence.StandardKey.Paste)
 
+        delete_action = QAction(ftr("delete-button"), self)
+        delete_action.setIcon(QIcon.fromTheme("edit-delete"))
+        delete_action.setStatusTip(ftr("delete-tooltip"))
+        delete_action.triggered.connect(self._delete_selection)
+        delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+
         edit_menu.addActions([
             undo_action,
             redo_action,
-            copy_action,
             cut_action,
-            paste_action
+            copy_action,
+            paste_action,
+            delete_action
         ])
 
         # ====== View Menu ====== #
@@ -179,9 +186,10 @@ class I2ManagerUI(QMainWindow):
             save_file_as,
             undo_action,
             redo_action,
-            copy_action,
             cut_action,
+            copy_action,
             paste_action,
+            delete_action,
             refresh_table,
             export_translations,
             import_translations,
@@ -339,23 +347,17 @@ class I2ManagerUI(QMainWindow):
 
             self.custom_table.update_table(self, terms, lang_subset)
 
-    def _undo_table(self):
+    def _undo_edit(self):
         if not hasattr(self.custom_table, "table_model"):
             return
 
         self.custom_table.table_model.undo_stack.undo()
 
-    def _redo_table(self):
+    def _redo_edit(self):
         if not hasattr(self.custom_table, "table_model"):
             return
 
         self.custom_table.table_model.undo_stack.redo()
-
-    def _copy_selection(self):
-        if not hasattr(self.custom_table, "table_model"):
-            return
-
-        self.custom_table.copy_selection()
 
     def _cut_selection(self):
         if not hasattr(self.custom_table, "table_model"):
@@ -363,11 +365,23 @@ class I2ManagerUI(QMainWindow):
 
         self.custom_table.cut_selection()
 
+    def _copy_selection(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.copy_selection()
+
     def _paste_selection(self):
         if not hasattr(self.custom_table, "table_model"):
             return
 
         self.custom_table.paste_selection()
+
+    def _delete_selection(self):
+        if not hasattr(self.custom_table, "table_model"):
+            return
+
+        self.custom_table.delete_selection()
 
     def open_file(self, path: str):
         path = Path(path)

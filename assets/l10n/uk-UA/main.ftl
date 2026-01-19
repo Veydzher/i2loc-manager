@@ -34,18 +34,21 @@ save-as-tooltip = Зберегти дамп файл UABEA як...
 exit-app-button = Вихід
 exit-app-tooltip = Вийти із застосунку.
 
+
 ## Edit section
 edit-menu-title = Редагувати
 undo-button = Скасувати
-undo-tooltip = Скасувати зміну.
-redo-button = Відновити
-redo-tooltip = Відновити зміну.
-copy-button = Копіювати
-copy-tooltip = Скопіювати вміст вибраного рядка.
+undo-tooltip = Скасувати правку.
+redo-button = Повторити
+redo-tooltip = Повторити правку.
 cut-button = Вирізати
 cut-tooltip = Вирізати вміст вибраного рядка.
+copy-button = Копіювати
+copy-tooltip = Скопіювати вміст вибраного рядка.
 paste-button = Вставити
 paste-tooltip = Вставити вміст буфера обміну у вибраний рядок.
+delete-button = Видалити
+delete-tooltip = Видалити вміст вибраного рядка.
 
 
 ## View section

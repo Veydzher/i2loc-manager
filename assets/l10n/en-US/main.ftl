@@ -34,18 +34,21 @@ save-as-tooltip = Save the UABEA dump file as...
 exit-app-button = Exit
 exit-app-tooltip = Exit the application.
 
+
 ## Edit section
 edit-menu-title = Edit
 undo-button = Undo
-undo-tooltip = Undo the change.
+undo-tooltip = Undo the edit.
 redo-button = Redo
-redo-tooltip = Redo the change.
-copy-button = Copy
-copy-tooltip = Copy the content of selected row.
+redo-tooltip = Redo the edit.
 cut-button = Cut
 cut-tooltip = Cut the content of selected row.
+copy-button = Copy
+copy-tooltip = Copy the content of selected row.
 paste-button = Paste
 paste-tooltip = Paste clipboard's entry to selected row.
+delete-button = Delete
+delete-tooltip = Delete the content of selected row.
 
 
 ## View section

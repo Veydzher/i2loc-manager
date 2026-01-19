@@ -368,24 +368,6 @@ class CustomTable(QTableView):
         else:
             super().keyPressEvent(event)
 
-    def copy_selection(self):
-        selection = self.selectionModel().selectedIndexes()
-        if not selection:
-            return
-
-        selection = sorted(selection, key=lambda x: (x.row(), x.column()))
-
-        rows = {}
-        for index in selection:
-            rows.setdefault(index.row(), {})[index.column()] = index.data()
-
-        copied_text = ""
-        for row in sorted(rows):
-            line = "\t".join(rows[row].get(column, "") for column in sorted(rows[row]))
-            copied_text += line + "\n"
-
-        QApplication.clipboard().setText(copied_text.strip())
-
     def cut_selection(self):
         selection = self.selectionModel().selectedIndexes()
         if not selection:
@@ -405,9 +387,41 @@ class CustomTable(QTableView):
         QApplication.clipboard().setText(cut_text.strip())
 
         model = self.model()
+        undo_stack = model.undo_stack
+
+        if undo_stack:
+            undo_stack.beginMacro("Cut")
+
+        try:
+            for index in selection:
+                if index.flags() & Qt.ItemFlag.ItemIsEditable:
+                    old_value = index.data()
+                    if old_value:
+                        if undo_stack:
+                            undo_stack.push(EditCommand(model, index.row(), index.column(), (old_value, "")))
+                        else:
+                            model.setData(index, "", Qt.ItemDataRole.EditRole)
+        finally:
+            if undo_stack:
+                undo_stack.endMacro()
+
+    def copy_selection(self):
+        selection = self.selectionModel().selectedIndexes()
+        if not selection:
+            return
+
+        selection = sorted(selection, key=lambda x: (x.row(), x.column()))
+
+        rows = {}
         for index in selection:
-            if index.flags() & Qt.ItemFlag.ItemIsEditable:
-                model.setData(index, "", Qt.ItemDataRole.EditRole)
+            rows.setdefault(index.row(), {})[index.column()] = index.data()
+
+        copied_text = ""
+        for row in sorted(rows):
+            line = "\t".join(rows[row].get(column, "") for column in sorted(rows[row]))
+            copied_text += line + "\n"
+
+        QApplication.clipboard().setText(copied_text.strip())
 
     def paste_selection(self):
         model = self.model()
@@ -459,6 +473,32 @@ class CustomTable(QTableView):
                                     undo_stack.push(EditCommand(model, row, column, (old_value, cell_value)))
                                 else:
                                     model.setData(index, cell_value)
+        finally:
+            if undo_stack:
+                undo_stack.endMacro()
+
+    def delete_selection(self):
+        selection = self.selectionModel().selectedIndexes()
+        if not selection:
+            return
+
+        selection = sorted(selection, key=lambda x: (x.row(), x.column()))
+
+        model = self.model()
+        undo_stack = model.undo_stack
+
+        if undo_stack:
+            undo_stack.beginMacro("Delete")
+
+        try:
+            for index in selection:
+                if index.flags() & Qt.ItemFlag.ItemIsEditable:
+                    old_value = index.data()
+                    if old_value:
+                        if undo_stack:
+                            undo_stack.push(EditCommand(model, index.row(), index.column(), (old_value, "")))
+                        else:
+                            model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
