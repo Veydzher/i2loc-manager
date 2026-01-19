@@ -8,7 +8,7 @@ class About(QDialog):
     def __init__(self, mw):
         super().__init__(mw)
         self.ts = fluent.tr_batch([
-            "about-app", ("about-app-version", {"version": "1.0.2"}), "close-button",
+            "about-app", ("about-app-version", {"version": "1.0.3"}), "close-button",
             ("about-app-desc", {
                 "I2Localization": "<a href=http://inter-illusion.com/tools/i2-localization>I2 Localization</a>",
                 "UABEA": "<a href=https://github.com/nesrak1/UABEA>UABEA</a>"
