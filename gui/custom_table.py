@@ -24,12 +24,14 @@ class CustomTableModel(QAbstractTableModel):
         self.lang_columns = None
 
         self.mw = mw
-        self.undo_stack = QUndoStack()
         self.base_fields = [
             ("Key", "name"),
             ("Type", "type"),
             ("Desc", "desc")
         ]
+        self.undo_stack = QUndoStack()
+        self.undo_stack.canUndoChanged.connect(self._enable_undo)
+        self.undo_stack.canRedoChanged.connect(self._enable_redo)
 
         self.update_data(terms, langs)
 
@@ -175,6 +177,12 @@ class CustomTableModel(QAbstractTableModel):
             "flags": {code: flags for _, code in self.lang_columns}
         })
         self.endInsertRows()
+
+    def _enable_undo(self, value: bool):
+        self.mw.config_actions[4].setEnabled(value)
+
+    def _enable_redo(self, value: bool):
+        self.mw.config_actions[5].setEnabled(value)
 
 
 class EditCommand(QUndoCommand):

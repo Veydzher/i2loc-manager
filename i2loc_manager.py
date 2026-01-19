@@ -281,6 +281,10 @@ class I2ManagerUI(QMainWindow):
         for action in self.config_actions[2:]:
             action.setEnabled(value)
 
+        if value:
+            self.config_actions[4].setEnabled(False)
+            self.config_actions[5].setEnabled(False)
+
     def setup_table_controls(self):
         controls = QHBoxLayout()
 
