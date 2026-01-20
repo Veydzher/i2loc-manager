@@ -361,17 +361,7 @@ class CustomTable(QTableView):
                 self._queue_rows(range(top_left.row(), bottom_right.row() + 1))
 
     def keyPressEvent(self, event):
-        if event.matches(QKeySequence.StandardKey.Cut):
-            self.cut_selection()
-        elif event.matches(QKeySequence.StandardKey.Copy):
-            self.copy_selection()
-        elif event.matches(QKeySequence.StandardKey.Paste):
-            self.paste_selection()
-        elif event.matches(QKeySequence.StandardKey.Undo):
-            self.undo_edit()
-        elif event.matches(QKeySequence.StandardKey.Redo):
-            self.redo_edit()
-        elif event.key() == Qt.Key.Key_Tab and self.currentIndex().column() == self.table_model.columnCount() - 1:
+        if event.key() == Qt.Key.Key_Tab and self.currentIndex().column() == self.table_model.columnCount() - 1:
             self.model().insertColumn(self.table_model.columnCount())
         elif event.key() == Qt.Key.Key_Return and self.currentIndex().row() == self.table_model.rowCount() - 1:
             self.model().insertRow(self.table_model.rowCount())
@@ -413,20 +403,27 @@ class CustomTable(QTableView):
 
         undo_stack = self.table_model.undo_stack
 
+        editable_changes = []
+        for index in selection:
+            if index.flags() & Qt.ItemFlag.ItemIsEditable:
+                old_value = index.data()
+                if old_value:
+                    editable_changes.append((index, old_value))
+
+        if not editable_changes:
+            return
+
         if undo_stack:
             undo_stack.beginMacro("Cut")
 
         try:
-            for index in selection:
-                if index.flags() & Qt.ItemFlag.ItemIsEditable:
-                    old_value = index.data()
-                    if old_value:
-                        if undo_stack:
-                            undo_stack.push(
-                                EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
-                            )
-                        else:
-                            self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
+            for index, old_value in editable_changes:
+                if undo_stack:
+                    undo_stack.push(
+                        EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                    )
+                else:
+                    self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
@@ -469,45 +466,49 @@ class CustomTable(QTableView):
         start_column = min(index.column() for index in selected)
 
         undo_stack = self.table_model.undo_stack
-        if undo_stack:
-            undo_stack.beginMacro("Paste")
 
-        try:
-            if len(lines) == 1:
-                cells = lines[0].split("\t")
-                for i, index in enumerate(sorted(selected, key=lambda x: (x.row(), x.column()))):
-                    cell_value = cells[i % len(cells)]
+        editable_changes = []
+
+        if len(lines) == 1:
+            cells = lines[0].split("\t")
+            for i, index in enumerate(sorted(selected, key=lambda x: (x.row(), x.column()))):
+                cell_value = cells[i % len(cells)]
+                old_value = index.data()
+
+                if old_value != cell_value:
+                    if index.flags() & Qt.ItemFlag.ItemIsEditable:
+                        editable_changes.append((index, old_value, cell_value))
+        else:
+            for row_offset, line in enumerate(lines):
+                cells = line.split("\t")
+                for column_offset, cell_value in enumerate(cells):
+                    row = start_row + row_offset
+                    column = start_column + column_offset
+
+                    if row >= self.table_model.rowCount() or column >= self.table_model.columnCount():
+                        continue
+
+                    index = self.table_model.index(row, column)
                     old_value = index.data()
 
                     if old_value != cell_value:
                         if index.flags() & Qt.ItemFlag.ItemIsEditable:
-                            if undo_stack:
-                                undo_stack.push(
-                                    EditCommand(self.table_model, index.row(), index.column(), (old_value, cell_value))
-                                )
-                            else:
-                               self.table_model.setData(index, cell_value)
-            else:
-                for row_offset, line in enumerate(lines):
-                    cells = line.split("\t")
-                    for column_offset, cell_value in enumerate(cells):
-                        row = start_row + row_offset
-                        column = start_column + column_offset
+                            editable_changes.append((index, old_value, cell_value))
 
-                        if row >= self.table_model.rowCount() or column >= self.table_model.columnCount():
-                            continue
+        if not editable_changes:
+            return
 
-                        index = self.table_model.index(row, column)
-                        old_value = index.data()
+        if undo_stack:
+            undo_stack.beginMacro("Paste")
 
-                        if old_value != cell_value:
-                            if index.flags() & Qt.ItemFlag.ItemIsEditable:
-                                if undo_stack:
-                                    undo_stack.push(
-                                        EditCommand(self.table_model, row, column, (old_value, cell_value))
-                                    )
-                                else:
-                                    self.table_model.setData(index, cell_value)
+        try:
+            for index, old_value, cell_value in editable_changes:
+                if undo_stack:
+                    undo_stack.push(
+                        EditCommand(self.table_model, index.row(), index.column(), (old_value, cell_value))
+                    )
+                else:
+                    self.table_model.setData(index, cell_value)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
@@ -522,21 +523,28 @@ class CustomTable(QTableView):
 
         selection = sorted(selection, key=lambda x: (x.row(), x.column()))
 
+        editable_changes = []
+        for index in selection:
+            if index.flags() & Qt.ItemFlag.ItemIsEditable:
+                old_value = index.data()
+                if old_value:
+                    editable_changes.append((index, old_value))
+
+        if not editable_changes:
+            return
+
         undo_stack = self.table_model.undo_stack
         if undo_stack:
             undo_stack.beginMacro("Delete")
 
         try:
-            for index in selection:
-                if index.flags() & Qt.ItemFlag.ItemIsEditable:
-                    old_value = index.data()
-                    if old_value:
-                        if undo_stack:
-                            undo_stack.push(
-                                EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
-                            )
-                        else:
-                            self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
+            for index, old_value in editable_changes:
+                if undo_stack:
+                    undo_stack.push(
+                        EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                    )
+                else:
+                    self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()

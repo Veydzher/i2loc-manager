@@ -305,9 +305,11 @@ class I2ManagerUI(QMainWindow):
         for action in self.config_actions[2:]:
             action.setEnabled(value)
 
-        if value:
-            self.config_actions[4].setEnabled(False)
-            self.config_actions[5].setEnabled(False)
+        if value and self.custom_table.table_model:
+            undo_stack = self.custom_table.table_model.undo_stack
+            if undo_stack:
+                self.config_actions[4].setEnabled(undo_stack.canUndo())
+                self.config_actions[5].setEnabled(undo_stack.canRedo())
 
     def setup_table_controls(self):
         controls = QHBoxLayout()
@@ -550,8 +552,8 @@ class I2ManagerUI(QMainWindow):
             self.status_bar_message(
                 ("opened-file", {"file_path": file_path}), 15000
             )
-            self.configure_menu(True)
             self.update_lang_selector()
+            self.configure_menu(True)
         else:
             self.status_bar_message()
             message_box(self, "error", result)
@@ -574,8 +576,8 @@ class I2ManagerUI(QMainWindow):
             self.setup_table_controls()
 
         if manager.content:
-            self.configure_menu(True)
             self.update_lang_selector()
+            self.configure_menu(True)
         else:
             self.configure_menu(False)
 
