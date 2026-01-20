@@ -414,7 +414,8 @@ class I2ManagerUI(QMainWindow):
                 standard_buttons=(
                     QMessageBox.StandardButton.Yes
                     | QMessageBox.StandardButton.Save
-                    | QMessageBox.StandardButton.Discard,
+                    | QMessageBox.StandardButton.No
+                    | QMessageBox.StandardButton.Cancel,
                     QMessageBox.StandardButton.Yes
                 )
             )
@@ -425,7 +426,7 @@ class I2ManagerUI(QMainWindow):
                 self._save_file_as()
                 if manager.is_modified():
                     return
-            elif reply == QMessageBox.StandardButton.Discard:
+            elif reply == QMessageBox.StandardButton.Cancel:
                 return
 
         self.temp_thread = QThread()
@@ -544,7 +545,7 @@ class I2ManagerUI(QMainWindow):
                 standard_buttons=(
                     QMessageBox.StandardButton.Yes
                     | QMessageBox.StandardButton.No
-                    | QMessageBox.StandardButton.Discard,
+                    | QMessageBox.StandardButton.Cancel,
                     QMessageBox.StandardButton.Yes
                     )
                 )
@@ -553,7 +554,7 @@ class I2ManagerUI(QMainWindow):
                 self._save_file_as()
                 if manager.is_modified():
                     return
-            elif reply == QMessageBox.StandardButton.Discard:
+            elif reply == QMessageBox.StandardButton.Cancel:
                 return
         
         event.accept()

@@ -96,7 +96,7 @@ warning-no-languages = У файлі не визначено жодної мов
 warning-invalid-language-format = Недійсний формат мови.
 warning-language-exists = Мова «{$language}» уже існує!
 
-question-save-file-open = Бажаєте зберегти зміни?
+question-save-file-open = Бажаєте зберегти зміни до файлу?
 question-save-file-exit = Бажаєте зберегти зміни перед виходом?
 
 
