@@ -26,6 +26,7 @@ class I2Manager:
         self.file_path: Path = Path()
         self.backup: dict[str, Any] = {}
         self.content: dict[str, Any] = {}
+        self.has_desc: bool = False
 
     def term_count(self):
         return len(self.content.get("terms", []))
@@ -251,7 +252,7 @@ class I2Manager:
                 output.append("     0 TermData data")
                 output.append(f"      1 string Term = \"{term['name']}\"")
                 output.append(f"      0 int TermType = {Tt[term['type']]}")
-                if term["desc"]:
+                if self.has_desc:
                     output.append(f"      1 string Description = \"{term['desc']}\"")
 
                 translations = term["translations"]
@@ -325,8 +326,7 @@ class I2Manager:
         finally:
             return str("\n".join(output) + "\n")
 
-    @staticmethod
-    def parse_json_dump(dump_content: dict):
+    def parse_json_dump(self, dump_content: dict):
         result = {
             "structure": {},
             "metadata": {},
@@ -378,6 +378,8 @@ class I2Manager:
                 "flags": lang_data[2]
             })
 
+        self.has_desc = any(term.get("Description", None) for term in dump_content["mSource"]["mTerms"]["Array"])
+
         for term in dump_content["mSource"]["mTerms"]["Array"]:
             term_data = (
                 term["Term"],
@@ -424,8 +426,9 @@ class I2Manager:
                     "Term": t_dict["name"],
                     "TermType": Tt[t_dict["type"]]
                 }
-                if desc := t_dict.get("desc"):
-                    term["Description"] = desc
+
+                if self.has_desc:
+                    term["Description"] = t_dict.get("desc", "")
 
                 term |= {
                     "Languages": {"Array": []},

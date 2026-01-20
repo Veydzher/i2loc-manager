@@ -18,10 +18,10 @@ from utils.manager import manager
 class CustomTableModel(QAbstractTableModel):
     def __init__(self, mw, terms, langs):
         super().__init__()
-        self.terms = None
-        self.langs = None
         self.columns = None
+        self.langs = None
         self.lang_columns = None
+        self.terms = None
 
         self.mw = mw
         self.base_fields = [
@@ -29,6 +29,7 @@ class CustomTableModel(QAbstractTableModel):
             ("Type", "type"),
             ("Desc", "desc")
         ]
+
         self.undo_stack = QUndoStack()
         self.undo_stack.canUndoChanged.connect(self._enable_undo)
         self.undo_stack.canRedoChanged.connect(self._enable_redo)
@@ -46,17 +47,6 @@ class CustomTableModel(QAbstractTableModel):
             return len(self.columns)
 
         return super().columnCount(parent)
-
-    def update_data(self, terms, langs):
-        self.beginResetModel()
-        self.terms = terms
-        self.langs = langs
-        self.lang_columns = [
-            (f"{name} [{code}]" if code != name.lower() else name, code)
-            for code, name in self.langs.items()
-        ]
-        self.columns = self.base_fields + self.lang_columns
-        self.endResetModel()
 
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
@@ -135,6 +125,17 @@ class CustomTableModel(QAbstractTableModel):
 
         index = self.index(row, column)
         self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
+
+    def update_data(self, terms, langs):
+        self.beginResetModel()
+        self.terms = terms
+        self.langs = langs
+        self.lang_columns = [
+            (f"{name} [{code}]" if code != name.lower() else name, code)
+            for code, name in self.langs.items()
+        ]
+        self.columns = self.base_fields + self.lang_columns
+        self.endResetModel()
 
     def add_language(self, name: str, code: str, flags: Ldf, copy_code: str | None = ""):
         title, msg = check_language(name, code, flags, self.langs)
@@ -267,13 +268,10 @@ class CustomTable(QTableView):
 
         self.setWordWrap(False)
 
-    def update_table(self, parent, terms, langs):
-        if getattr(self, "table_model", None):
-            self.table_model.update_data(terms, langs)
-        else:
-            self.table_model = CustomTableModel(parent, terms, langs)
-            self.table_model.dataChanged.connect(self._on_data_changed)
-            self.setModel(self.table_model)
+    def load_table(self, parent, terms, langs):
+        self.table_model = CustomTableModel(parent, terms, langs)
+        self.table_model.dataChanged.connect(self._on_data_changed)
+        self.setModel(self.table_model)
 
         corner_button = self.findChild(QAbstractButton)
         if corner_button and not corner_button.text():
@@ -283,6 +281,13 @@ class CustomTable(QTableView):
             label.setGeometry(corner_button.geometry())
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.show()
+
+        QTimer.singleShot(50, self._queue_visible_rows)
+        self.adjust_column_widths()
+        self.viewport().update()
+
+    def update_table(self, terms, langs):
+        self.table_model.update_data(terms, langs)
 
         QTimer.singleShot(50, self._queue_visible_rows)
         self.adjust_column_widths()

@@ -1,9 +1,10 @@
 ## Main
 language-name = Українська
 
-yes-button = Так
-no-button = Ні
 ok-button = Гаразд
+no-button = Ні
+yes-button = Так
+save-button = Зберегти як...
 apply-button = Застосувати
 close-button = Закрити
 cancel-button = Скасувати
@@ -96,7 +97,8 @@ warning-no-languages = У файлі не визначено жодної мов
 warning-invalid-language-format = Недійсний формат мови.
 warning-language-exists = Мова «{$language}» уже існує!
 
-question-save-file = Бажаєте зберегти зміни перед виходом?
+question-save-file-open = Бажаєте зберегти зміни?
+question-save-file-exit = Бажаєте зберегти зміни перед виходом?
 
 
 ## File explorer titles

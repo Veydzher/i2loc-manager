@@ -328,7 +328,7 @@ class I2ManagerUI(QMainWindow):
         self.custom_table = CustomTable()
         self.main_layout.addWidget(self.custom_table)
 
-    def update_lang_selector(self):
+    def update_lang_selector(self, is_new_file=False):
         prev_item = self.lang_selector.currentText()
         self.lang_selector.clear()
 
@@ -346,12 +346,12 @@ class I2ManagerUI(QMainWindow):
             else:
                 self.lang_selector.setCurrentIndex(0)
 
-        self._update_table()
+        self._update_table(is_new_file)
         self.term_count.setText(
             ftr("term-count-label", {"count": manager.term_count()})
         )
 
-    def _update_table(self):
+    def _update_table(self, new_file=False):
         if not manager.content:
             message_box(self, "warning", "warning-no-file")
             return
@@ -375,7 +375,10 @@ class I2ManagerUI(QMainWindow):
                 code, name = manager.get_language_by_index(selected_index-1)
                 lang_subset = {code: name}
 
-            self.custom_table.update_table(self, terms, lang_subset)
+            if new_file:
+                self.custom_table.load_table(self, terms, lang_subset)
+            else:
+                self.custom_table.update_table(terms, lang_subset)
 
     def _undo_edit(self):
         self.custom_table.undo_edit()
@@ -404,6 +407,26 @@ class I2ManagerUI(QMainWindow):
                 config.remove_recent_file(str(path))
                 self._refresh_ui()
             return
+
+        if manager.is_modified():
+            reply = message_box(
+                self, "question", "question-save-file-open",
+                standard_buttons=(
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.Save
+                    | QMessageBox.StandardButton.Discard,
+                    QMessageBox.StandardButton.Yes
+                )
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self._save_file()
+            elif reply == QMessageBox.StandardButton.Save:
+                self._save_file_as()
+                if manager.is_modified():
+                    return
+            elif reply == QMessageBox.StandardButton.Discard:
+                return
 
         self.temp_thread = QThread()
         self.worker = FileWorker(str(path))
@@ -517,11 +540,11 @@ class I2ManagerUI(QMainWindow):
         if manager.is_modified():
             event.ignore()
             reply = message_box(
-                self, "question", "question-save-file",
+                self, "question", "question-save-file-exit",
                 standard_buttons=(
                     QMessageBox.StandardButton.Yes
                     | QMessageBox.StandardButton.No
-                    | QMessageBox.StandardButton.Cancel,
+                    | QMessageBox.StandardButton.Discard,
                     QMessageBox.StandardButton.Yes
                     )
                 )
@@ -530,7 +553,7 @@ class I2ManagerUI(QMainWindow):
                 self._save_file_as()
                 if manager.is_modified():
                     return
-            elif reply == QMessageBox.StandardButton.Cancel:
+            elif reply == QMessageBox.StandardButton.Discard:
                 return
         
         event.accept()
@@ -552,7 +575,7 @@ class I2ManagerUI(QMainWindow):
             self.status_bar_message(
                 ("opened-file", {"file_path": file_path}), 15000
             )
-            self.update_lang_selector()
+            self.update_lang_selector(True)
             self.configure_menu(True)
         else:
             self.status_bar_message()
