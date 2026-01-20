@@ -58,6 +58,10 @@ refresh-table-tooltip = Refresh the table manually.
 theme-menu = Theme
 theme-menu-tooltip = This theme is compatible with your OS.
 app-language-menu = Language
+check-updates-now-button = Check for Updates Now
+check-updates-now-tooltip = Manually check for available updates.
+check-updates-startup-button = Check for Updates on Startup
+check-updates-startup-tooltip = Automatically check for updates when the application starts.
 
 
 ## Tools section
@@ -113,6 +117,27 @@ opening-file = Opening file: {$file_path}
 opened-file = File opened: {$file_path}
 saving-file = Saving file: {$file_path}
 saved-file = File saved: {$file_path}
+
+
+## Update module
+update-available-title = Update Available
+update-available-message = A new release is available: {$name}
+changelog-label = 📝 Changelog:
+download-update-button = Download Now
+skip-update-button = Skip For Now
+install-now-button = Install Now
+install-later-button = Install Later
+question-install-pending-update = A previously downloaded update (version {$version}) is ready to install. Would you like to install it now?
+question-delete-pending-update = Would you like to delete the downloaded update file?
+installing-update = Installing update...
+checking-for-updates = Checking for updates...
+downloading-update = ⏳ Downloading update...
+download-complete = ✅ Download complete!
+download-error = ❌ Download failed!
+info-no-updates-available = You are using the latest version!
+error-check-updates-failed = Failed to check for updates: {$error}
+error-download-failed = Download failed: {$error}
+error-install-failed = Installation failed: {$error}
 
 
 ## Export module

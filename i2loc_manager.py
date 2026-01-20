@@ -20,6 +20,7 @@ from gui.helpers import (
 )
 from gui.import_module import ImportModule
 from gui.langs_manage import LanguageManager
+from gui.updater import UpdateManager
 from utils.app_config import config
 from utils.app_locales import fluent, ftr
 from utils.enums import FileExtension as Fe
@@ -28,6 +29,8 @@ from utils.manager import manager
 
 
 class I2ManagerUI(QMainWindow):
+    VERSION = "1.0.4"
+
     def __init__(self):
         super().__init__()
         self.config_actions = None
@@ -38,7 +41,7 @@ class I2ManagerUI(QMainWindow):
         self.worker = None
 
         self.setAcceptDrops(True)
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(900, 600)
         self.setWindowTitle("I2 Localization Manager")
         self.setWindowIcon(QIcon(pathfind("assets\\icon.ico")))
         set_window_size(self)
@@ -48,7 +51,13 @@ class I2ManagerUI(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.central_widget.setLayout(self.main_layout)
 
+        self.update_manager = UpdateManager(self, self.VERSION)
+
         self._refresh_ui()
+
+        self.update_manager.check_for_pending_update()
+        if config.get_config("check_updates_on_startup", True):
+            self.update_manager.check_for_updates(silent=True)
 
     def setup_menu_bar(self):
         menu_bar = self.menuBar()
@@ -148,10 +157,24 @@ class I2ManagerUI(QMainWindow):
         refresh_table.triggered.connect(self._update_table)
         refresh_table.setShortcut(QKeySequence.StandardKey.Refresh)
 
+        check_updates_now = QAction(ftr("check-updates-now-button"), self)
+        check_updates_now.setIcon(QIcon.fromTheme("system-software-update"))
+        check_updates_now.setStatusTip(ftr("check-updates-now-tooltip"))
+        check_updates_now.triggered.connect(lambda: self.update_manager.check_for_updates())
+
+        check_updates_startup = QAction(ftr("check-updates-startup-button"), self)
+        check_updates_startup.setCheckable(True)
+        check_updates_startup.setChecked(config.get_config("check_updates_on_startup", True))
+        check_updates_startup.setStatusTip(ftr("check-updates-startup-tooltip"))
+        check_updates_startup.triggered.connect(self._toggle_startup_updates)
+
         view_menu.addAction(refresh_table)
         view_menu.addSeparator()
         view_menu.addMenu(self.setup_theme_menu())
         view_menu.addMenu(self.setup_language_menu())
+        view_menu.addSeparator()
+        view_menu.addAction(check_updates_now)
+        view_menu.addAction(check_updates_startup)
 
         # ====== Tool Menu ====== #
         tool_menu = menu_bar.addMenu(ftr("tools-menu-title"))
@@ -555,6 +578,10 @@ class I2ManagerUI(QMainWindow):
             self.update_lang_selector()
         else:
             self.configure_menu(False)
+
+    @staticmethod
+    def _toggle_startup_updates(checked: bool):
+        config.set_config("check_updates_on_startup", checked)
 
     @staticmethod
     def _set_theme_mode(theme: str):

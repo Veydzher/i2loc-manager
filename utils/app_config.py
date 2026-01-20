@@ -76,7 +76,7 @@ class AppConfig:
                 self.config = json.load(f)
         else:
             print(f"[CONFIG] Could not find the configuration file, creating one with defaults...")
-            self.config = {"language": "en-US", "theme": "Fusion"}
+            self.config = {"check_updates_on_startup": False, "language": "en-US", "theme": "Fusion"}
             self.save_config()
 
     def save_config(self):
