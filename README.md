@@ -11,7 +11,8 @@
 <p align="center">
     <a href="#current-features">Current Features</a> •
     <a href="#planned-features">Planned Features</a> •
-    <a href="#contributing">Contributing</a>
+    <a href="#contributing">Contributing</a> •
+    <a href="#license">License</a>
 </p>
 
 <p align="center">
@@ -20,14 +21,15 @@
 
 ## Current Features
 
-- Support for `.txt` and `.json` [UABEA](https://github.com/nesrak1/UABEA) dump files
+- Support of `.txt` and `.json` [UABEA](https://github.com/nesrak1/UABEA) dump files
 - Conversion between `.txt` and `.json`
-- Support for import and export of `CSV` and `TSV` files
-- Modify language details directly using `Tools -> Language Manager`
+- Support of `CSV` and `TSV` files import and export
+- Modification of language details in `Tools -> Language Manager`
 
 ## Planned Features
 
 - I2 Localization metadata options menu
+- Proper handling of `Languages_Touch` array
 - Pluralization translation tags handling [**i2p_**...]
 - Specialization translation tags handling [**i2s_**...]
 
@@ -76,6 +78,7 @@ python i2loc_manager.py
 ## Dependencies
 - **PySide6** - GUI Framework
 - **fluent** - Localization Framework
+- **requests** - HTTP requests
 
 ## License
 

@@ -422,13 +422,16 @@ class I2Manager:
             def build_term(t_dict):
                 term = {
                     "Term": t_dict["name"],
-                    "TermType": Tt[t_dict["type"]],
+                    "TermType": Tt[t_dict["type"]]
+                }
+                if desc := t_dict.get("desc"):
+                    term["Description"] = desc
+
+                term |= {
                     "Languages": {"Array": []},
                     "Flags": {"Array": list(t_dict["flags"].values())},
                     "Languages_Touch": {"Array": t_dict["languages_touch"]}
                 }
-                if desc := t_dict.get("desc"):
-                    term["Description"] = desc
 
                 for code in self.get_language_codes():
                     term["Languages"]["Array"].append(t_dict["translations"][code])
