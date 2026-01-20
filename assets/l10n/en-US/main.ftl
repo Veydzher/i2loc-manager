@@ -4,7 +4,6 @@ language-name = English US
 ok-button = Ok
 no-button = No
 yes-button = Yes
-save-button = Save As...
 apply-button = Apply
 close-button = Close
 cancel-button = Cancel

@@ -4,7 +4,6 @@ language-name = Українська
 ok-button = Гаразд
 no-button = Ні
 yes-button = Так
-save-button = Зберегти як...
 apply-button = Застосувати
 close-button = Закрити
 cancel-button = Скасувати
