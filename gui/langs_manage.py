@@ -432,7 +432,7 @@ class AddLanguageDialog(QDialog):
         # self.code_edit.setMaxLength(5)
         self.native_checkbox.setEnabled(False)
         self.flag_edit.setMaxVisibleItems(2)
-        self.flag_edit.addItems(Ldf.titles())
+        self.flag_edit.addItems([ftr(f"lang-flag-{flag.lower()}") for flag in Ldf.titles()])
 
         manual_layout.addRow(ftr("add-language-name"), self.name_edit)
         manual_layout.addRow(ftr("add-language-code"), self.code_edit)
