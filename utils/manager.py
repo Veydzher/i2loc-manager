@@ -28,17 +28,17 @@ class I2Manager:
         self.content: dict[str, Any] = {}
         self.has_desc: bool = False
 
-    def term_count(self):
-        return len(self.content.get("terms", []))
-
-    def get_terms(self):
-        return self.content.get("terms", [])
-
     def is_modified(self):
         return self.content != self.backup
 
     def make_backup(self):
         self.backup = deepcopy(self.content)
+
+    def get_terms(self):
+        return self.content.get("terms", [])
+
+    def term_count(self):
+        return len(self.get_terms())
 
     def update_file_info(self, file_path: Path | str):
         if isinstance(file_path, str):

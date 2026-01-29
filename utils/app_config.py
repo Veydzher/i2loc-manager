@@ -90,4 +90,5 @@ class AppConfig:
         self.config[key] = value
         self.save_config()
 
+
 config = AppConfig()

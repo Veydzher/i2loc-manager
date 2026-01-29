@@ -11,9 +11,6 @@ class InvalidExtensionError(Exception): ...
 def pathfind(relative: str):
     if getattr(sys, "frozen", False):
         base = Path(sys.executable).parent
-        data_folder = base / "data"
-        if data_folder.exists() and data_folder.is_dir():
-            base = data_folder
     else:
         base = Path(__file__).parent.parent
 

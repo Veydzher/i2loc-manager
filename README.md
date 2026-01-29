@@ -2,10 +2,11 @@
 
 <p align="center">
     <img src="assets/icon.ico" alt="Logo" width="128" height="128">
-</p>
-
-<p align="center">
+    <br><br>
     A lightweight tool for managing <a href="http://inter-illusion.com/tools/i2-localization/">I2 Localization</a> assets exported via <a href="https://github.com/nesrak1/UABEA">UABEA</a> as dump files with ease.
+    <br><br>
+    <a href="https://github.com/Veydzher/i2loc-manager/releases/latest/download/i2-localization-manager.zip"><img alt="Download Windows Build" src="https://img.shields.io/badge/windows-download-first"></a>
+    <a href="https://github.com/Veydzher/i2loc-manager/releases"><img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/Veydzher/i2loc-manager/total"></a>
 </p>
 
 <p align="center">
@@ -44,8 +45,8 @@ Recommended Python version: 3.10+
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/i2loc-maneger.git
-cd i2loc-maneger
+git clone https://github.com/YOUR_USERNAME/i2loc-manager.git
+cd i2loc-manager
 ```
 
 2. **Create a virtual environment:**
@@ -78,7 +79,7 @@ python i2loc_manager.py
 ## Dependencies
 - **PySide6** - GUI Framework
 - **fluent** - Localization Framework
-- **requests** - HTTP requests
+- **requests** - HTTP Requests
 
 ## License
 
@@ -87,5 +88,5 @@ For the complete licensing terms, please read the [license](https://github.com/V
 ---
 
 <p align="center">
-  Made with ❤️ using Python by veydzh3r
+  Made with ❤️ by veydzh3r
 </p>
