@@ -295,7 +295,7 @@ class I2Manager:
                 output.append(f"    [{l_index}]")
                 output.append("     0 LanguageData data")
                 output.append(f"      1 string Name = \"{lang['name']}\"")
-                output.append(f"      1 string Code = \"{lang['code']}\"")
+                output.append(f"      1 string Code = \"{lang['code'] if lang['code'] != lang['name'].lower() else ''}\"")
                 output.append(f"      1 UInt8 Flags = {Ldf[lang['flags']]}")
 
             output.append(f"  1 UInt8 IgnoreDeviceLanguage = {int(metadata['IgnoreDeviceLanguage'])}")
