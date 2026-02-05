@@ -26,21 +26,32 @@ class I2Manager:
         self.file_path: Path = Path()
         self.backup: dict[str, Any] = {}
         self.content: dict[str, Any] = {}
-        self.has_desc: bool = False
+        self.has_descriptions: bool = False
 
     def is_modified(self):
+        """Check whether the data is modified or not.
+
+        :return: True if modified, False otherwise.
+        """
         return self.content != self.backup
 
     def make_backup(self):
+        """Make the backup of the data."""
         self.backup = deepcopy(self.content)
 
     def get_terms(self):
+        """Get the terms' dictionaries list."""
         return self.content.get("terms", [])
 
     def term_count(self):
+        """Get the number of terms."""
         return len(self.get_terms())
 
     def update_file_info(self, file_path: Path | str):
+        """Update stored file path and name from the given path.
+
+        :param file_path: path to the file.
+        """
         if isinstance(file_path, str):
             file_path = Path(file_path)
 
@@ -48,47 +59,130 @@ class I2Manager:
         self.file_name = file_path.stem
 
     def get_languages(self):
+        """Get the languages' dictionaries list."""
+        return self.content.get("languages", [])
+
+    def get_languages_copy(self):
+        """Get the copy of languages' dictionaries list."""
         return deepcopy(self.content.get("languages", []))
 
-    def get_language(self, code: str):
-        return next(
-            (lang for lang in self.get_languages() if lang["code"] == code),
-            None
-        )
-
-    def get_language_by_index(self, index: int):
-        lang = self.get_languages()[index]
-        return lang["code"], lang["name"]
+    def get_language_index(self, code: str):
+        """Get the index of the language given its code."""
+        for idx, lang in enumerate(self.get_languages()):
+            if lang["code"] == code:
+                return idx
+        return -1
 
     def get_displayed_languages(self):
+        """Get a list of display names of the languages. E.g. `English [en]`."""
         return [
-            f"{lang['name']} [{lang['code']}]" if lang["code"] != lang["name"].lower() else lang["name"]
+            f"{lang['name']} [{lang['code']}]" if lang["code"] else lang["name"]
             for lang in self.get_languages()
         ]
 
-    def get_language_names(self):
-        return [
-            lang["name"]
-            for lang in self.get_languages()
-        ]
+    def move_language_entries(self, from_index: int, to_index: int):
+        """Move translation and flag entries from one language to another.
 
-    def get_language_codes(self):
-        return [
-            lang["code"]
-            for lang in self.get_languages()
-        ]
+        :param from_index: source language index.
+        :param to_index: target language index.
+        """
+        terms = self.get_terms()
+        languages = self.get_languages()
 
-    def update_code_entries(self, lang_code: str, new_code: str):
-        if lang_code == new_code:
-            return
-
-        for term in self.get_terms():
+        for term in terms:
             translations = term["translations"]
-            translations[new_code] = translations.pop(lang_code)
             flags = term["flags"]
-            flags[new_code] = flags.pop(lang_code)
+
+            if 0 <= from_index < len(translations):
+                translation = translations.pop(from_index)
+                translations.insert(to_index, translation)
+
+            if 0 <= from_index < len(flags):
+                flag = flags.pop(from_index)
+                flags.insert(to_index, flag)
+
+        if 0 <= from_index < len(languages):
+            languages.insert(to_index, languages.pop(from_index))
+
+    def add_translation(self, term_index: int, lang_index: int, translation: Any, flags: int):
+        """Add the translation and its flag for a given term and language.
+
+        :param term_index: index of the term in the `terms` list.
+        :param lang_index: index of the language in the `languages` list.
+        :param translation: any value to set.
+        :param flags: integer value to set.
+        """
+        self.set_translation(term_index, lang_index, str(translation))
+        self.set_translation_flag(term_index, lang_index, flags)
+
+    def get_translation(self, term_index: int, lang_index: int | None):
+        """Get the translation for a given term and language.
+
+        :param term_index: index of the term in the `terms` list.
+        :param lang_index: index of the language in the `languages` list.
+        """
+        terms = self.get_terms()
+        if lang_index is not None and 0 <= term_index < len(terms):
+            translations = terms[term_index]["translations"]
+            if 0 <= lang_index < len(translations):
+                return translations[lang_index]
+        return ""
+
+    def set_translation(self, term_index: int, lang_index: int, value: str):
+        """Set the translation for a given term and language.
+
+        :param term_index: index of the term in the `terms` list.
+        :param lang_index: index of the language in the `languages` list.
+        :param value: string value to set
+        """
+        terms = self.get_terms()
+
+        if 0 <= term_index < len(terms):
+            translations = terms[term_index]["translations"]
+            if 0 <= lang_index < len(translations):
+                translations[lang_index] = value
+            else:
+                while len(translations) <= lang_index:
+                    translations.append("")
+                translations[lang_index] = value
+
+    def get_translation_flag(self, term_index: int, lang_index: int) -> int:
+        """Get the flag for a given term and language.
+
+        :param term_index: index of the term in the `terms` list.
+        :param lang_index: index of the language in the `languages` list.
+        :return: integer value of the translation flag if exists. Otherwise, -1.
+        """
+        terms = self.get_terms()
+        if 0 <= term_index < len(terms):
+            flags = terms[term_index]["flags"]
+            if 0 <= lang_index < len(flags):
+                return flags[lang_index]
+        return -1
+
+    def set_translation_flag(self, term_index: int, lang_index: int, value: int):
+        """Set the flag for a given term and language.
+
+        :param term_index: index of the term in the `terms` list.
+        :param lang_index: index of the language in the `languages` list.
+        :param value: integer value to set.
+        """
+        terms = self.get_terms()
+        if 0 <= term_index < len(terms):
+            flags = terms[term_index]["flags"]
+            if 0 <= lang_index < len(flags):
+                flags[lang_index] = value
+            else:
+                while len(flags) <= lang_index:
+                    flags.append(0)
+                flags[lang_index] = value
 
     def open_dump_file(self, path: str | Path):
+        """Open and process the UABEA dump file.
+
+        :param path: path to the file.
+        :return: string value of the exception if raised, True otherwise.
+        """
         try:
             if isinstance(path, str):
                 path = Path(path)
@@ -117,7 +211,12 @@ class I2Manager:
         except (OSError, KeyError, MemoryError, PermissionError) as e:
             return str(e)
 
-    def save_dump_file(self, file_path: str):
+    def save_dump_file(self, file_path: str | Path):
+        """Build and save the UABEA dump file to specified path.
+
+        :param file_path: path to the file to save.
+        :return: string value of the exception if raised, True otherwise.
+        """
         try:
             if isinstance(file_path, str):
                 file_path = Path(file_path)
@@ -146,7 +245,11 @@ class I2Manager:
 
     @staticmethod
     def convert_txt_dump(dump_lines: list[str]):
-        """Converts UABEA txt dump into JSON one."""
+        """Convert the UABEA TXT dump into JSON one.
+
+        :param dump_lines: list of string lines.
+        :return: UABEA JSON dump content.
+        """
         root = {}
         stack = [(-1, root)]
 
@@ -212,6 +315,10 @@ class I2Manager:
         return root
 
     def build_txt_dump(self):
+        """Build the UABEA TXT dump file.
+
+        :return: UABEA TXT dump data.
+        """
         output = []
         try:
             content = self.content
@@ -252,7 +359,7 @@ class I2Manager:
                 output.append("     0 TermData data")
                 output.append(f"      1 string Term = \"{term['name']}\"")
                 output.append(f"      0 int TermType = {Tt[term['type']]}")
-                if self.has_desc:
+                if self.has_descriptions:
                     output.append(f"      1 string Description = \"{term['desc']}\"")
 
                 translations = term["translations"]
@@ -260,17 +367,17 @@ class I2Manager:
                 output.append(f"       1 Array Array ({len(translations)} items)")
                 output.append(f"        0 int size = {len(translations)}")
 
-                for t_index, lang in enumerate(languages):
-                    translation = escape(translations[lang["code"]])
+                for t_index, translation in enumerate(translations):
+                    translation = escape(translation)
                     output.append(f"        [{t_index}]")
                     output.append(f"         1 string data = \"{translation}\"")
 
                 flags = term["flags"]
                 output.append("      0 vector Flags")
-                output.append(f"       1 Array Array ({len(translations)} items)")
-                output.append(f"        0 int size = {len(translations)}")
+                output.append(f"       1 Array Array ({len(flags)} items)")
+                output.append(f"        0 int size = {len(flags)}")
 
-                for f_index, flag in enumerate(flags.values()):
+                for f_index, flag in enumerate(flags):
                     output.append(f"        [{f_index}]")
                     output.append(f"         0 UInt8 data = {flag}")
 
@@ -295,7 +402,7 @@ class I2Manager:
                 output.append(f"    [{l_index}]")
                 output.append("     0 LanguageData data")
                 output.append(f"      1 string Name = \"{lang['name']}\"")
-                output.append(f"      1 string Code = \"{lang['code'] if lang['code'] != lang['name'].lower() else ''}\"")
+                output.append(f"      1 string Code = \"{lang['code']}\"")
                 output.append(f"      1 UInt8 Flags = {Ldf[lang['flags']]}")
 
             output.append(f"  1 UInt8 IgnoreDeviceLanguage = {int(metadata['IgnoreDeviceLanguage'])}")
@@ -309,7 +416,7 @@ class I2Manager:
             output.append(f"  0 int GoogleUpdateSynchronization = {Gus[metadata['GoogleUpdateSynchronization']]}")
             output.append(f"  0 float GoogleUpdateDelay = {int(metadata['GoogleUpdateDelay'])}")
 
-            assets = metadata.get("Assets", {})["Array"]
+            assets = metadata["Assets"]["Array"]
             output.append("  0 vector Assets")
             output.append(f"   1 Array Array ({len(assets)} items)")
             output.append(f"    0 int size = {len(assets)}")
@@ -327,6 +434,11 @@ class I2Manager:
             return str("\n".join(output) + "\n")
 
     def parse_json_dump(self, dump_content: dict):
+        """Parse UABEA JSON dump content into a custom dictionary.
+
+        :param dump_content: UABEA JSON dump content.
+        :return: custom data dictionary.
+        """
         result = {
             "structure": {},
             "metadata": {},
@@ -364,21 +476,14 @@ class I2Manager:
             if name in parse_metadata:
                 result["metadata"][name] = parse_metadata[name](items)
 
-        language_codes = []
         for lang_dict in dump_content["mSource"]["mLanguages"]["Array"]:
-            lang_data = (
-                lang_dict["Name"],
-                lang_dict["Code"] or lang_dict["Name"].lower(),
-                Ldf(lang_dict["Flags"])
-            )
-            language_codes.append(lang_data[1])
             result["languages"].append({
-                "name": lang_data[0],
-                "code": lang_data[1],
-                "flags": lang_data[2]
+                "name": lang_dict["Name"],
+                "code": lang_dict["Code"],
+                "flags": Ldf(lang_dict["Flags"])
             })
 
-        self.has_desc = any(term.get("Description", None) for term in dump_content["mSource"]["mTerms"]["Array"])
+        self.has_descriptions = any(term.get("Description", None) for term in dump_content["mSource"]["mTerms"]["Array"])
 
         for term in dump_content["mSource"]["mTerms"]["Array"]:
             term_data = (
@@ -388,15 +493,17 @@ class I2Manager:
                 term["Languages_Touch"]["Array"]
             )
 
-            flags = {}
-            translations = {}
+            flags = []
+            translations = []
+
             if term["Languages"] and term["Flags"]:
-                trs = term["Languages"]["Array"]
-                fls = term["Flags"]["Array"]
-                for idx, (tr, fl) in enumerate(zip(trs, fls)):
-                    if idx < len(language_codes):
-                        translations[language_codes[idx]] = tr
-                        flags[language_codes[idx]] = fl
+                t_languages = term["Languages"]["Array"]
+                t_flags = term["Flags"]["Array"]
+
+                for idx, (tr, fl) in enumerate(zip(t_languages, t_flags)):
+                    if idx < len(t_languages) and idx < len(t_flags):
+                        translations.append(tr)
+                        flags.append(fl)
 
             result["terms"].append({
                 "name": term_data[0],
@@ -410,6 +517,13 @@ class I2Manager:
         return result
 
     def build_json_dump(self):
+        """Build the UABEA JSON dump.
+
+        Includes `insert_metadata` function to be able to put specified metadata entries easier.
+        As well as `build_term` and `build_language` functions.
+
+        :return: JSON formatted string.
+        """
         output = {}
         try:
             def insert_metadata(parsing_metadata, target):
@@ -427,27 +541,25 @@ class I2Manager:
                     "TermType": Tt[t_dict["type"]]
                 }
 
-                if self.has_desc:
-                    term["Description"] = t_dict.get("desc", "")
+                if self.has_descriptions:
+                    term["Description"] = t_dict["desc"]
 
                 term |= {
-                    "Languages": {"Array": []},
-                    "Flags": {"Array": list(t_dict["flags"].values())},
+                    "Languages": {"Array": t_dict["translations"]},
+                    "Flags": {"Array": t_dict["flags"]},
                     "Languages_Touch": {"Array": t_dict["languages_touch"]}
                 }
 
-                for code in self.get_language_codes():
-                    term["Languages"]["Array"].append(t_dict["translations"][code])
                 return term
 
             def build_language(l_dict):
                 return {
                     "Name": l_dict["name"],
-                    "Code": l_dict["code"] if l_dict["code"] != l_dict["name"].lower() else "",
+                    "Code": l_dict["code"],
                     "Flags": Ldf[l_dict["flags"]]
                 }
 
-            parse_metadata = [
+            build_metadata = [
                 ("UserAgreesToHaveItOnTheScene", int),
                 ("UserAgreesToHaveItInsideThePluginsFolder", int),
                 ("GoogleLiveSyncIsUptoDate", int),
@@ -474,7 +586,7 @@ class I2Manager:
 
             m_source = output.setdefault("mSource", {})
 
-            insert_metadata(parse_metadata[:3], m_source)
+            insert_metadata(build_metadata[:3], m_source)
 
             m_source["mTerms"] = {"Array": []}
             for term_dict in self.content.get("terms", []):
@@ -482,7 +594,7 @@ class I2Manager:
                     build_term(term_dict)
                 )
 
-            insert_metadata(parse_metadata[3:6], m_source)
+            insert_metadata(build_metadata[3:6], m_source)
 
             m_source["mLanguages"] = {"Array": []}
             for lang_dict in self.content.get("languages", []):
@@ -490,7 +602,7 @@ class I2Manager:
                     build_language(lang_dict)
                 )
 
-            insert_metadata(parse_metadata[6:], m_source)
+            insert_metadata(build_metadata[6:], m_source)
         except Exception as e:
             return str(e)
         finally:

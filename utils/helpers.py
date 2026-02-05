@@ -1,8 +1,10 @@
 import string
 import sys
+import typing
 from pathlib import Path
 
-from utils.enums import LanguageDataFlags as Ldf
+if typing.TYPE_CHECKING:
+    from utils.enums import LanguageDataFlags as Ldf
 
 
 class InvalidExtensionError(Exception): ...
@@ -17,10 +19,10 @@ def pathfind(relative: str):
     return str(base / relative)
 
 
-def check_language(name: str, code: str, flags: Ldf, langs: dict | list):
+def check_language(name: str, code: str, flags: "Ldf", langs: dict | list):
     restricted_fields = ["key", "type", "desc"]
 
-    if not name or not code or not flags:
+    if not name or not flags:
         return "warning", "warning-invalid-language"
 
     if name.lower() in restricted_fields or code.lower() in restricted_fields:

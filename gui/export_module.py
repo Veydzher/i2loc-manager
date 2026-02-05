@@ -83,8 +83,8 @@ class ExportModule:
         scroll_area.setWidget(QWidget())
 
         widgets = [
-            LanguageCheckBox(lang["name"], lang["code"], lang["flags"], self.lang_selector)
-            for lang in languages
+            LanguageCheckBox(idx, lang["name"], lang["code"], lang["flags"], self.lang_selector)
+            for idx, lang in enumerate(languages)
         ]
         checkbox_layout = QVBoxLayout(scroll_area.widget())
 
@@ -135,7 +135,11 @@ class ExportModule:
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return {}
 
-        selected_languages = {w.code: w.name for w in widgets if w.IsChecked()}
+        selected_languages = [
+            (w.index, w.name, w.code)
+            for w in widgets if w.IsChecked()
+        ]
+
         if not selected_languages:
             message_box(self.mw, "warning", "warning-no-languages-selected")
             return {}
@@ -145,48 +149,62 @@ class ExportModule:
     def export_selected_languages(self, file_path: Path, delimiter: str, terms: list[dict[str, Any]], selected_languages: dict[str, str]):
         try:
             with open(file_path, "w+", encoding="utf-8", newline="") as f:
-                langs = [
-                    f"{name} [{code}]" if code != name.lower() else name
-                    for code, name in selected_languages.items()
-                ]
-                fields = ["Key", "Type", "Desc"] + langs
+                fields = ["Key", "Type", "Desc"]
+                fields.extend([
+                    f"{name} [{code}]" if code else name
+                    for _, name, code in selected_languages
+                ])
                 writer = csv.DictWriter(f, fields, delimiter=delimiter)
                 writer.writeheader()
 
                 exported_translations = 0
-                for index, term in enumerate(terms):
+                for term_idx, term in enumerate(terms):
                     try:
-                        writer.writerow({
+                        row_data = {
                             "Key": term["name"],
                             "Type": term["type"].displayed,
-                            "Desc": term["desc"],
-                            **{
-                                f"{name} [{code}]" if code != name.lower() else name:
-                                term["translations"][code] for code, name in selected_languages.items()
-                            }
-                        })
+                            "Desc": term["desc"]
+                        }
+
+                        for lang_idx, name, code in selected_languages:
+                            display_text = f"{name} [{code}]" if code else name
+
+                            row_data[display_text] = manager.get_translation(term_idx, lang_idx)
+
+                        writer.writerow(row_data)
                         exported_translations += 1
                     except Exception as e:
-                        message_box(self.mw, "error", ("error-processing-term", {"num": index+1, "term_name": term["name"], "error": str(e)}))
+                        message_box(
+                            self.mw, "error",("error-processing-term", {
+                                "num": term_idx+1,
+                                "term_name": term["name"],
+                                "error": str(e)
+                            }))
                         return
 
+            lang_displays = [f"{name} [{code}]" if code else name for _, name, code in selected_languages]
             output_langs = (
-                ftr("and-text", {"langs": ", ".join(list(selected_languages.values())[:-1]), "last_lang": list(selected_languages.values())[-1]})
-                if len(list(selected_languages.values())) > 1 else list(selected_languages.values())[0]
+                ftr("and-text", {
+                    "langs": ", ".join(lang_displays[:-1]),
+                    "last_lang": lang_displays[-1]})
+                if len(lang_displays) > 1 else lang_displays[0]
             )
 
             self.mw.status_bar_message(("saved-file", {"file_path": str(file_path)}), 15000)
             message_box(self.mw, "information", ("info-success-export", {
-                "translation_num": exported_translations, "language_num": len(selected_languages),
-                "file_name": file_path.name, "languages": output_langs
+                "translation_num": exported_translations,
+                "language_num": len(selected_languages),
+                "file_name": file_path.name,
+                "languages": output_langs
             }))
         except Exception as e:
             message_box(self.mw, "error", ("error-export-languages", {"error": str(e)}))
 
 
 class LanguageCheckBox(QWidget):
-    def __init__(self, name: str, code: str, flags: Ldf, lang_selector: QComboBox):
+    def __init__(self, index: int, name: str, code: str, flags: Ldf, lang_selector: QComboBox):
         super().__init__()
+        self.index = index
         self.name = name
         self.code = code
         self.flags = flags
@@ -194,7 +212,7 @@ class LanguageCheckBox(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        lang_name = f"{name} [{code}]" if code != name.lower() else name
+        lang_name = f"{name} [{code}]" if code else name
         self.checkbox = QCheckBox(lang_name)
 
         if flags == Ldf.DISABLED:

@@ -27,9 +27,8 @@ from utils.enums import FileExtension as Fe
 from utils.helpers import pathfind
 from utils.manager import manager
 
-
 class I2ManagerUI(QMainWindow):
-    VERSION = "1.0.4"
+    VERSION = "1.1.0"
 
     def __init__(self):
         super().__init__()
@@ -201,7 +200,10 @@ class I2ManagerUI(QMainWindow):
         ])
 
         # ====== About Action ====== #
-        menu_bar.addAction(ftr("about-app"), self._open_about_dialog)
+        about_action = QAction(ftr("about-app"), self)
+        about_action.setStatusTip(ftr("about-app-tooltip"))
+        about_action.triggered.connect(self._open_about_dialog)
+        menu_bar.addAction(about_action)
 
         self.config_actions = [
             open_file,
@@ -366,14 +368,16 @@ class I2ManagerUI(QMainWindow):
                 message_box(self, "warning", "warning-no-language-selected")
                 return
 
+            all_languages = manager.get_languages()
+
             if selected_index == 0:
-                lang_subset = {
-                    lang["code"]: lang["name"]
-                    for lang in manager.get_languages()
-                }
+                lang_subset = all_languages
             else:
-                code, name = manager.get_language_by_index(selected_index-1)
-                lang_subset = {code: name}
+                lang_index = selected_index - 1
+                if 0 <= lang_index < len(all_languages):
+                    lang_subset = [all_languages[lang_index]]
+                else:
+                    lang_subset = []
 
             if new_file:
                 self.custom_table.load_table(self, terms, lang_subset)

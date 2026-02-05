@@ -3,7 +3,7 @@ from typing import Any, Sequence
 from PySide6.QtCore import (
     Qt, QTimer, QAbstractTableModel, QModelIndex, QPersistentModelIndex
 )
-from PySide6.QtGui import QFontMetrics, QKeySequence, QUndoStack, QUndoCommand
+from PySide6.QtGui import QFontMetrics, QUndoStack, QUndoCommand
 from PySide6.QtWidgets import (
     QTableView, QSizePolicy, QAbstractScrollArea, QHeaderView, QAbstractButton,
     QLabel, QApplication, QStyledItemDelegate, QTextEdit
@@ -69,7 +69,7 @@ class CustomTableModel(QAbstractTableModel):
                     text = text.displayed
                 return text
 
-            return term["translations"].get(key, "")
+            return manager.get_translation(row, key)
 
         return None
 
@@ -87,7 +87,7 @@ class CustomTableModel(QAbstractTableModel):
         if key in (c[1] for c in self.base_fields):
             old_value = term.get(key, "")
         else:
-            old_value = term["translations"].get(key, "")
+            old_value = manager.get_translation(row, key)
 
         if old_value == value:
             return False
@@ -121,7 +121,7 @@ class CustomTableModel(QAbstractTableModel):
         if key in (c[1] for c in self.base_fields):
             term[key] = value
         else:
-            term["translations"][key] = value
+            manager.set_translation(row, key, value)
 
         index = self.index(row, column)
         self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
@@ -130,52 +130,75 @@ class CustomTableModel(QAbstractTableModel):
         self.beginResetModel()
         self.terms = terms
         self.langs = langs
-        self.lang_columns = [
-            (f"{name} [{code}]" if code != name.lower() else name, code)
-            for code, name in self.langs.items()
-        ]
+
+        all_languages = manager.get_languages_copy()
+
+        self.lang_columns = []
+        for lang in self.langs:
+            name = lang["name"]
+            code = lang["code"]
+            display_name = f"{name} [{code}]" if code else name
+            self.lang_columns.append((display_name, all_languages.index(lang)))
+
         self.columns = self.base_fields + self.lang_columns
         self.endResetModel()
 
-    def add_language(self, name: str, code: str, flags: Ldf, copy_code: str | None = ""):
+    def add_language(self, name: str, code: str, flags: Ldf, copy_lang_index: int | None = None):
         title, msg = check_language(name, code, flags, self.langs)
         if title and msg:
             message_box(self.mw, title, msg)
             return
 
-        manager.content["languages"].append({
+        new_language = {
             "name": name,
             "code": code,
             "flags": flags
-        })
+        }
 
-        for term in manager.get_terms():
-            term.setdefault("translations", {})[code] = term.get("translations", {}).get(copy_code, "")
-            term.setdefault("flags", {})[code] = 0
+        manager_languages = manager.get_languages()
+        manager_languages.append(new_language)
+
+        new_language_index = manager_languages.index(new_language)
+
+        for idx, term in enumerate(manager.get_terms()):
+            new_translation = manager.get_translation(idx, copy_lang_index)
+            manager.add_translation(idx, new_language_index, new_translation, 0)
 
         self.mw.update_lang_selector()
 
-    def remove_language(self, code: str):
-        language = manager.get_language(code)
-        if not language:
+    def remove_language(self, lang_index: int):
+        languages = manager.get_languages()
+        if not (0 <= lang_index < len(languages)):
             return
 
-        manager.content["languages"].remove(language)
+        languages.pop(lang_index)
+
         for term in manager.get_terms():
-            term["translations"].pop(code, None)
-            term["flags"].pop(code, None)
+            translations = term["translations"]
+            flags = term["flags"]
+
+            if 0 <= lang_index < len(translations):
+                translations.pop(lang_index)
+
+            if 0 <= lang_index < len(flags):
+                flags.pop(lang_index)
 
         self.mw.update_lang_selector()
 
     # Not using it for now
-    def add_term(self, term_text: str = "", term_type: TermType = TermType.TEXT, term_desc: str = "", flags: int = 0):
+    def add_term(self, term_name: str = "", term_type: TermType = TermType.TEXT, term_desc: str = "", translations: list[str] | None = None, flags: list[int] | None = None):
+        if translations is None:
+            translations = []
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-        manager.content["terms"].append({
-            "name": term_text,
+
+        num_langs = len(self.langs)
+
+        manager.get_terms().append({
+            "name": term_name,
             "type": term_type.displayed,
             "desc": term_desc,
-            "translations": {code: term_text for _, code in self.lang_columns},
-            "flags": {code: flags for _, code in self.lang_columns}
+            "translations": translations if translations else [term_name] * num_langs,
+            "flags": flags if flags else [0] * num_langs
         })
         self.endInsertRows()
 

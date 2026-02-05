@@ -17,11 +17,15 @@ from utils.helpers import normalise
 from utils.manager import manager
 
 
+REQUIRED_COLUMNS = ["Key", "Type", "Desc"]
+
+
 class ImportModule:
     def __init__(self, main_window):
         self.mw = main_window
         self.ts = fluent.tr_batch([
-            "open-title", "all-files", "csv-file", "tsv-file",
+            "open-title", "all-files",
+            "csv-file", "tsv-file",
             "importing-progress-label",
             "importing-progress-title",
             "import-translations-title",
@@ -58,107 +62,109 @@ class ImportModule:
 
         try:
             delimiter = Fs[Fe(file_suffix).name].value
-            with open(path, "r", encoding="utf-8", newline="") as f1:
-                reader = csv.reader(f1, delimiter=delimiter)
-                headers = next(reader, [])
 
-                if not headers:
-                    message_box(self.mw, "error", "error-no-headers")
-                    return
+            csv_data = []
+            with open(path, "r", encoding="utf-8", newline="") as file:
+                reader = csv.DictReader(file, delimiter=delimiter)
+                headers = reader.fieldnames
 
-                required_columns = ["Key", "Type", "Desc"]
-                missing_columns = [col for col in required_columns if col not in headers]
-                if missing_columns:
-                    message_box(self.mw, "error", ("error-missing-headers", {"headers": ", ".join(missing_columns)}))
-                    return
+                for row in reader:
+                    new_row = {
+                        k: normalise(v)
+                        for k, v in row.items()
+                    }
+                    csv_data.append(new_row)
 
-                csv_languages = [col for col in headers if col not in required_columns]
-                if not csv_languages:
-                    message_box(self.mw, "error", "error-no-languages-columns")
-                    return
+            csv_languages = self._validate_headers(headers)
+            if not csv_languages:
+                message_box(self.mw, "error", "error-no-languages-columns")
+                return
 
-                lang_mapping = self._get_import_languages(csv_languages)
-                if not lang_mapping:
-                    return
+            lang_mapping = self._get_import_languages(csv_languages)
+            if not lang_mapping:
+                return
 
-                csv_data = []
-                with open(path, "r", encoding="utf-8", newline="") as f2:
-                    reader = csv.DictReader(f2, delimiter=delimiter)
-                    for row in reader:
-                        new_row = {
-                            k: normalise(v)
-                            for k, v in row.items()
-                        }
-                        csv_data.append(new_row)
+            model = self.mw.custom_table.table_model
+            if not model:
+                message_box(self.mw, "error", "error-no-available-model")
+                return
 
-                model = self.mw.custom_table.table_model
-                if not model:
-                    message_box(self.mw, "error", "error-no-available-model")
-                    return
+            term_to_row = {
+                term["name"]: index
+                for index, term in enumerate(model.terms)
+            }
 
-                term_to_row = {
-                    term["name"]: index
-                    for index, term in enumerate(model.terms)
-                }
+            progress = QProgressDialog(self.ts["importing-progress-label"], self.ts["cancel-button"], 0, len(csv_data), self.mw)
+            progress.setWindowTitle(self.ts["importing-progress-title"])
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setValue(0)
 
-                progress = QProgressDialog(self.ts["importing-progress-label"], self.ts["cancel-button"], 0, len(csv_data), self.mw)
-                progress.setWindowTitle(self.ts["importing-progress-title"])
-                progress.setWindowModality(Qt.WindowModality.WindowModal)
-                progress.setValue(0)
+            updated_count = 0
+            for idx, data in enumerate(csv_data):
+                progress.setValue(idx)
+                if progress.wasCanceled():
+                    self.mw.status_bar_message(("importing-file-canceled", {"file_name": file_name}))
+                    break
 
-                updated_count = 0
-                for i, data in enumerate(csv_data):
-                    progress.setValue(i)
-                    if progress.wasCanceled():
-                        self.mw.status_bar_message(("importing-file-canceled", {"file_name": file_name}))
-                        break
+                term_key = data.get("Key", "")
+                if not term_key or term_key not in term_to_row:
+                    continue
 
-                    term_key = data.get("Key", "")
-                    if not term_key or term_key not in term_to_row:
-                        continue
+                row_index = term_to_row[term_key]
 
-                    row_index = term_to_row[term_key]
+                for col_header, col_value in data.items():
+                    if col_header in REQUIRED_COLUMNS:
+                        col_key = {
+                            "Key": "name",
+                            "Type": "type",
+                            "Desc": "desc"
+                        }.get(col_header)
 
-                    for col_header, col_value in data.items():
-                        if col_header in required_columns:
-                            col_key = {
-                                "Key": "name",
-                                "Type": "type",
-                                "Desc": "desc"
-                            }.get(col_header)
+                        col_index = next((i for i, (_, key) in enumerate(model.columns) if key == col_key), -1)
+                        if col_index != -1:
+                            index = model.index(row_index, col_index)
+                            model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
+                            normalised_data_value = normalise(model_data)
 
-                            col_index = next((i for i, (_, key) in enumerate(model.columns) if key == col_key), -1)
-                            if col_index != -1:
-                                index = model.index(row_index, col_index)
-                                model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                                normalised_data_value = normalise(model_data)
+                            if col_value and normalised_data_value != col_value:
+                                model.setData(index, col_value, Qt.ItemDataRole.EditRole)
+                                updated_count += 1
 
-                                if col_value and normalised_data_value != col_value:
-                                    model.setData(index, col_value, Qt.ItemDataRole.EditRole)
-                                    updated_count += 1
+                    elif col_header in lang_mapping:
+                        lang_index = lang_mapping[col_header]
 
-                        elif col_header in lang_mapping:
-                            lang_code = lang_mapping[col_header]
-                            col_index = next((i for i, (_, key) in enumerate(model.columns) if key == lang_code), -1)
-                            if col_index != -1:
-                                index = model.index(row_index, col_index)
-                                model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                                normalised_data_value = normalise(model_data)
+                        col_index = next((i for i, (_, key) in enumerate(model.columns) if key == lang_index), -1)
+                        if col_index != -1:
+                            index = model.index(row_index, col_index)
+                            model_data = model.data(index, Qt.ItemDataRole.DisplayRole)
+                            normalised_data_value = normalise(model_data)
 
-                                if col_value and normalised_data_value != col_value:
-                                    model.setData(index, col_value, Qt.ItemDataRole.EditRole)
-                                    updated_count += 1
+                            if col_value and normalised_data_value != col_value:
+                                model.setData(index, col_value, Qt.ItemDataRole.EditRole)
+                                updated_count += 1
 
-                progress.setValue(len(csv_data))
+            progress.setValue(len(csv_data))
 
-                if updated_count:
-                    self.mw.status_bar_message(("imported-data-success", {"file_name": file_name}))
-                    message_box(self.mw, "information", ("info-success-import", {"count": updated_count}))
-                else:
-                    message_box(self.mw, "information", "info-no-imported")
+            if updated_count:
+                self.mw.status_bar_message(("imported-data-success", {"file_name": file_name}))
+                message_box(self.mw, "information", ("info-success-import", {"count": updated_count}))
+            else:
+                message_box(self.mw, "information", "info-no-imported")
         except Exception as e:
             message_box(self.mw, "error", ("error-import-file", {"error": str(e)}))
             return
+
+    def _validate_headers(self, headers: list[str] | None):
+        if not headers:
+            message_box(self.mw, "error", "error-no-headers")
+            return None
+
+        missing_columns = [col for col in REQUIRED_COLUMNS if col not in headers]
+        if missing_columns:
+            message_box(self.mw, "error", ("error-missing-headers", {"headers": ", ".join(missing_columns)}))
+            return None
+
+        return [col for col in headers if col not in REQUIRED_COLUMNS]
 
     def _get_import_languages(self, table_langs: list):
         langs = manager.get_displayed_languages()
@@ -209,7 +215,7 @@ class ImportModule:
                     csv_code = csv_lang.split("[")[1].split("]")[0].strip().lower()
 
                 best_match_index = 0
-                for i, lang in enumerate(langs):
+                for idx, lang in enumerate(langs):
                     lang_lower = lang.lower()
 
                     lang_code = None
@@ -217,14 +223,14 @@ class ImportModule:
                         lang_code = lang.split("[")[1].split("]")[0].strip().lower()
 
                     if csv_code and lang_code and csv_code == lang_code:
-                        best_match_index = i + 1
+                        best_match_index = idx + 1
                         break
 
                     lang_name = lang.split("[")[0].strip().lower() if "[" in lang else lang_lower
                     csv_name = csv_lang.split("[")[0].strip().lower() if "[" in csv_lang else csv_lang_lower
 
-                    if csv_name == lang_name or csv_name in lang_name or lang_name in csv_name:
-                        best_match_index = i + 1
+                    if csv_name == lang_name:   # or csv_name in lang_name or lang_name in csv_name
+                        best_match_index = idx + 1
                         break
 
                 combo.setCurrentIndex(best_match_index)
@@ -246,7 +252,7 @@ class ImportModule:
             grid.addWidget(QLabel(csv_lang), row, 0)
 
             combo = QComboBox()
-            combo.currentIndexChanged.connect(lambda _: update_dialog_button())
+            combo.currentIndexChanged.connect(update_dialog_button)
             combo.addItem(self.ts["do-not-import-option"])
             for lang in langs:
                 combo.addItem(lang)
@@ -285,9 +291,7 @@ class ImportModule:
             for csv_lang, combo in mappings.items():
                 selected_index = combo.currentIndex() - 1
                 if selected_index >= 0:
-                    code, _ = manager.get_language_by_index(selected_index)
-                    if code:
-                        lang_mapping[csv_lang] = code
+                    lang_mapping[csv_lang] = selected_index
 
         return lang_mapping
 

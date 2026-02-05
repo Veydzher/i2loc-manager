@@ -1,5 +1,7 @@
 from enum import Enum, EnumMeta, unique
 
+from utils.app_locales import ftr
+
 
 class CustomEnumMeta(EnumMeta):
     def __getitem__(cls, name: str | Enum):
@@ -27,7 +29,9 @@ class CustomEnum(Enum, metaclass=CustomEnumMeta):
         return cls.parse(s).value if isinstance(s, str) else s.value
 
     @classmethod
-    def titles(cls):
+    def titles(cls, prefix: str = ""):
+        if prefix:
+            return [ftr(f"{prefix}-{e.displayed.lower()}") for e in cls]
         return [e.displayed for e in cls]
 
 

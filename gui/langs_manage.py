@@ -1,5 +1,6 @@
 import json
 import string
+from gettext import translation
 
 from PySide6.QtCore import (
     Qt, QAbstractListModel, QModelIndex, QPersistentModelIndex
@@ -30,8 +31,8 @@ class Language:
         self.is_modified = False
 
     def __str__(self):
-        return f"{self.name} [{self.code}]" if not self.is_modified else f"{self.name} [{self.code}] *"
-        # return f"{self.name} [{self.code}]" if self.code != self.name.lower() else self.name
+        display_text = f"{self.name} [{self.code}]" if self.code else self.name
+        return display_text if not self.is_modified else f"{display_text} *"
 
 
 class LanguageListWidget(QListView):
@@ -79,7 +80,7 @@ class LanguageModel(QAbstractListModel):
 
     def remove_language(self, index: int):
         if 0 <= index < len(self._languages):
-            self.mw.custom_table.model().remove_language(self._languages[index].code)
+            self.mw.custom_table.model().remove_language(index)
             self.beginRemoveRows(QModelIndex(), index, index)
             removed = self._languages.pop(index)
             self.endRemoveRows()
@@ -92,8 +93,13 @@ class LanguageModel(QAbstractListModel):
                 QModelIndex(), from_index, from_index,
                 QModelIndex(), to_index + (1 if to_index > from_index else 0)
             )
+
             lang = self._languages.pop(from_index)
             self._languages.insert(to_index, lang)
+
+            manager.move_language_entries(from_index, to_index)
+            self.mw.update_lang_selector()
+
             self.endMoveRows()
             return True
         return False
@@ -167,7 +173,7 @@ class LanguageManager(QDialog):
 
         # self.edit_code.setMaxLength(5)
         self.edit_flag.setMaxVisibleItems(2)
-        self.edit_flag.addItems([ftr(f"lang-flag-{flag.lower()}") for flag in Ldf.titles()])
+        self.edit_flag.addItems(Ldf.titles("lang-flag"))
 
         details_layout.addRow(ftr("add-language-name"), self.edit_name)
         details_layout.addRow(ftr("add-language-code"), self.edit_code)
@@ -255,9 +261,7 @@ class LanguageManager(QDialog):
             new_lang = Language(data["name"], data["code"], data["flags"])
             new_lang.is_modified = True
 
-            copy_from = None
-            if data["copy_from"] is not None:
-                copy_from = self.get_languages()[data["copy_from"]].code
+            copy_from = data["copy_from"]
 
             self.model.add_language(new_lang, copy_from)
 
@@ -274,7 +278,7 @@ class LanguageManager(QDialog):
             return
 
         reply = message_box(
-            self.mw, "question", ("confirm-language-removal", {"language": f"{lang.name} [{lang.code}]"}),
+            self.mw, "question", ("confirm-language-removal", {"language": str(lang)}),
             standard_buttons=(
                 QMessageBox.StandardButton.Yes
                 | QMessageBox.StandardButton.No,
@@ -300,7 +304,6 @@ class LanguageManager(QDialog):
             if self.model.move_language(row, row - 1):
                 new_index = self.model.index(row - 1)
                 self.language_list.setCurrentIndex(new_index)
-                self.update_languages()
 
     def move_down(self):
         current_index = self.language_list.currentIndex()
@@ -309,7 +312,6 @@ class LanguageManager(QDialog):
             if self.model.move_language(row, row + 1):
                 new_index = self.model.index(row + 1)
                 self.language_list.setCurrentIndex(new_index)
-                self.update_languages()
 
     def load_language_details(self, current: QModelIndex):
         lang = self.model.get_language(current.row())
@@ -325,8 +327,8 @@ class LanguageManager(QDialog):
         self.edit_code.setText(lang.code)
         self.edit_flag.setCurrentIndex(Ldf[lang.flags])
 
-        english_name = ISO_LANGUAGES.get(lang.code, {}).get("name")
-        native_name = ISO_LANGUAGES.get(lang.code, {}).get("native")
+        english_name = ISO_LANGUAGES.get(lang.code, {}).get("name", "")
+        native_name = ISO_LANGUAGES.get(lang.code, {}).get("native", "")
         enabled = bool(native_name) and english_name != native_name
         checked = enabled and lang.name == native_name
 
@@ -353,6 +355,9 @@ class LanguageManager(QDialog):
         flag = Ldf(self.edit_flag.currentIndex())
 
         for other in self.model.get_languages():
+            if other.code == "":
+                continue
+
             if other is not lang and other.code.lower() == code.lower():
                 message_box(self.mw, "warning", ("warning-duplicate-code", {"code": code}))
                 self.edit_code.setText(lang.prev_code)
@@ -388,8 +393,6 @@ class LanguageManager(QDialog):
 
         if len(code) >= 2:
             self.update_languages()
-            manager.update_code_entries(lang.prev_code, code)
-            lang.prev_code = code
 
     def get_languages(self):
         return self.model.get_languages()
@@ -523,6 +526,9 @@ class AddLanguageDialog(QDialog):
             return
 
         for lang in self.existing_languages:
+            if lang.code == "":
+                continue
+
             if lang.code.lower() == code.lower():
                 message_box(self.mw, "warning", ("warning-duplicate-code", {"code": code}))
                 return

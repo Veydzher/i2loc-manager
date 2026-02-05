@@ -15,6 +15,7 @@ report-dev = Просимо опублікувати цю помилку та п
 
 ## About popup
 about-app = Про застосунок
+about-app-tooltip = Переглянути відомості про застосунок.
 about-app-version = Версія: {$version}
 about-app-desc = Простий інструмент для керування асетами {$I2Localization}, експортованими через {$UABEA} у вигляді дамп файлів.
 

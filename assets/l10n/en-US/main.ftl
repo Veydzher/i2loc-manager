@@ -15,6 +15,7 @@ report-dev = Please attach the file you were trying to open and post this error 
 
 ## About popup
 about-app = About
+about-app-tooltip = View the information about the application.
 about-app-version = Version: {$version}
 about-app-desc = A lightweight tool for managing {$I2Localization} assets exported via {$UABEA} as dump files with ease.
 
