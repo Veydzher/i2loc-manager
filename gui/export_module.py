@@ -74,8 +74,10 @@ class ExportModule:
             return None
 
         dialog = QDialog(self.mw)
-        dialog.setWindowTitle(ftr("export-translations-title"))
         dialog.setMinimumSize(750, 400)
+        dialog.setMaximumSize(800, 450)
+        dialog.setContentsMargins(5, 5, 5, 5)
+        dialog.setWindowTitle(ftr("export-translations-title"))
 
         main_layout = QVBoxLayout(dialog)
         sub_layout = QHBoxLayout()
