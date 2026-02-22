@@ -11,6 +11,8 @@ discard-button = Discard
 all-languages = All Languages
 term-count-label = Total Terms: {$count}
 report-dev = Please attach the file you were trying to open and post this error in {$link} tab.
+advanced-title = Advanced
+default-label = (default)
 
 
 ## About popup
@@ -151,6 +153,19 @@ deselect-all-button = Deselect all
 export-button = Export
 export-button-disabled = Select at least one language to export.
 
+export-advanced-options-title = Advanced CSV Options
+export-quoting-label = Quoting:
+export-quoting-minimal = Minimal
+export-quoting-all-fields = All Fields
+export-quoting-non-numeric = Non-Numeric
+export-quoting-none = None
+
+export-quote-character-label = Quote Character:
+export-escape-character-label = Escape Character:
+export-escape-character-optional = None (optional, e.g. \)
+export-escape-character-required = Required for 'None' Quoting
+export-line-ending-label = Line Ending:
+
 # Status bar message
 exporting-file-data = Exporting data from {$file_name}...
 
@@ -178,16 +193,50 @@ info-success-export = Successfully exported {$translation_num ->
 ## Import module
 
 import-translations-title = Import Translations
+
+import-mode-title = Import Mode
+import-mode-merge = Merge - update exiting, add new ones
+import-mode-replace = Replace - clear all, import everything
+import-mode-add-new = Add New Only - skip existing
+import-mode-update-only = Update Only - no new content
+
+import-options-title = Import Options
+import-create-terms = Create Missing Terms
+import-update-types = Update Term Types
+import-update-descriptions = Update Term Descriptions
+import-skip-empty = Skip Empty Translations
+
 import-select-languages = Select which languages you want to import to:
 imported-language-label = <b>Imported Language</b>
 import-to-language-label = <b>Target Language</b>
-auto-map-button = Auto-Map
-clear-mappings-button = Clear All
-do-not-import-option = Do not import
+do-not-import-option = Do Not Import
+create-new-lang-option = Create New Language
+
+import-auto-map-toggle = Auto-Map Languages
+import-auto-map-button = Auto-Map
+import-clear-mappings-button = Clear All
 import-button = Import
-import-button-disabled = Select at least one target language to import.
-importing-progress-label = Checking translations to import...
-importing-progress-title = Importing
+
+import-progress-label = Checking translations to import...
+import-progress-title = Importing
+
+import-term-not-found = Row {$idx}: Term '{$term_key}' not found (skipped)
+import-invalid-term-type = Row {$idx}: Invalid type '{$term_type}', using 'Text'
+import-general-error = Row {$idx}: {$error}
+
+import-summary-title = Import Summary
+import-from-file-title = Import from {$file_name}
+import-total-changes = ✓ Total changes: {$count}
+import-terms-created =    • Terms Created: {$count}
+import-terms-updated =    • Terms Updated: {$count}
+import-languages-created =    • Languages Created: {$count}
+import-translations-added =    • Translations Added: {$count}
+import-translations-updated =    • Translations Updated: {$count}
+import-term-types-updated =    • Term Types Updated: {$count}
+import-term-descs-updated =    • Term Descriptions Updated: {$count}
+import-skipped-empty =    • Empty Translations Skipped: {$count}
+import-no-changes-made = No changes were made.
+import-errors-title = ⚠ Errors: {$count}
 
 ## Status bar messages
 importing-file-data = Importing data from {$file_name}...

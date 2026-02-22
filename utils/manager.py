@@ -104,6 +104,27 @@ class I2Manager:
         if 0 <= from_index < len(languages):
             languages.insert(to_index, languages.pop(from_index))
 
+    def add_term(self, *term_info):
+        """Add a term to the `terms` list.
+
+        :param term_info: term info to add. Can be either dict of values or passed arguments.
+        """
+        if isinstance(term_info, dict):
+            new_term = term_info
+        else:
+            num_langs = len(self.get_languages())
+            new_term = {
+            "name": term_info[0],
+            "type": term_info[1].displayed,
+            "desc": term_info[2],
+            "translations": term_info[3] if term_info[3] else [term_info[0]] * num_langs,
+            "flags": term_info[4] if term_info[4] else [0] * num_langs
+            }
+
+        terms = self.get_terms()
+        terms.append(new_term)
+        return len(terms) - 1, new_term
+
     def add_translation(self, term_index: int, lang_index: int, translation: Any, flags: int):
         """Add the translation and its flag for a given term and language.
 
@@ -116,7 +137,7 @@ class I2Manager:
         self.set_translation_flag(term_index, lang_index, flags)
 
     def get_translation(self, term_index: int, lang_index: int | None):
-        """Get the translation for a given term and language.
+        """Get the translation from a given term and language.
 
         :param term_index: index of the term in the `terms` list.
         :param lang_index: index of the language in the `languages` list.
@@ -147,7 +168,7 @@ class I2Manager:
                 translations[lang_index] = value
 
     def get_translation_flag(self, term_index: int, lang_index: int) -> int:
-        """Get the flag for a given term and language.
+        """Get the flag from a given term and language.
 
         :param term_index: index of the term in the `terms` list.
         :param lang_index: index of the language in the `languages` list.
@@ -176,6 +197,52 @@ class I2Manager:
                 while len(flags) <= lang_index:
                     flags.append(0)
                 flags[lang_index] = value
+
+    def add_language(self, *lang_info):
+        """Add a language to the `languages` list.
+
+        :param lang_info: language info to add. Can be either dict of values or passed arguments.
+        """
+        if isinstance(lang_info, dict):
+            new_language = lang_info
+        else:
+            new_language = {
+                "name": lang_info[0],
+                "code": lang_info[1],
+                "flags": lang_info[2]
+            }
+
+        languages = manager.get_languages()
+        languages.append(new_language)
+
+        new_language_index = languages.index(new_language)
+
+        for idx, term in enumerate(self.get_terms()):
+            new_translation = self.get_translation(idx, lang_info[3])
+            self.add_translation(idx, new_language_index, new_translation, 0)
+
+        return new_language_index, new_language
+
+    def remove_language(self, lang_index: int):
+        """Remove a language from the `languages` list.
+
+        :param lang_index: index of the language in the `languages` list.
+        """
+        languages = self.get_languages()
+        if not 0 <= lang_index < len(languages):
+            return
+
+        languages.pop(lang_index)
+
+        for term in self.get_terms():
+            translations = term["translations"]
+            flags = term["flags"]
+
+            if 0 <= lang_index < len(translations):
+                translations.pop(lang_index)
+
+            if 0 <= lang_index < len(flags):
+                flags.pop(lang_index)
 
     def open_dump_file(self, path: str | Path):
         """Open and process the UABEA dump file.
@@ -430,8 +497,8 @@ class I2Manager:
 
         except Exception as e:
             raise e from e
-        finally:
-            return str("\n".join(output) + "\n")
+
+        return str("\n".join(output) + "\n")
 
     def parse_json_dump(self, dump_content: dict):
         """Parse UABEA JSON dump content into a custom dictionary.
@@ -605,8 +672,8 @@ class I2Manager:
             insert_metadata(build_metadata[6:], m_source)
         except Exception as e:
             return str(e)
-        finally:
-            return json.dumps(output, ensure_ascii=False, indent=2)
+
+        return json.dumps(output, ensure_ascii=False, indent=2)
 
 
 manager = I2Manager()

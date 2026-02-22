@@ -1,6 +1,5 @@
 import json
 import string
-from gettext import translation
 
 from PySide6.QtCore import (
     Qt, QAbstractListModel, QModelIndex, QPersistentModelIndex

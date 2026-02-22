@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui.helpers import message_box
-from utils.app_config import config
+from utils.app_config import app_cfg
 from utils.app_locales import ftr
 
 
@@ -278,7 +278,7 @@ class UpdateDialog(QDialog):
     def _on_download_finished(self, file_path: str):
         self.update_file_path = file_path
 
-        config.set_config("pending_update", {
+        app_cfg.set_config("pending_update", {
             "version": self.update_info["version"],
             "file_path": str(file_path),
             "download_date": str(Path(file_path).stat().st_mtime)
@@ -451,7 +451,7 @@ class UpdateManager:
             message_box(self.parent, "error", ("error-check-updates-failed", {"error": error_msg}))
 
     def check_for_pending_update(self):
-        pending = config.get_config("pending_update")
+        pending = app_cfg.get_config("pending_update")
         if not pending:
             return
 
@@ -459,7 +459,7 @@ class UpdateManager:
         version = pending.get("version", "")
 
         if not file_path.exists():
-            config.set_config("pending_update", None)
+            app_cfg.set_config("pending_update", None)
             return
 
         reply = message_box(
@@ -514,7 +514,7 @@ class UpdateManager:
 
     @staticmethod
     def _cleanup_pending_update():
-        pending = config.get_config("pending_update", None)
+        pending = app_cfg.get_config("pending_update", None)
         if pending:
             file_path = Path(pending.get("file_path", ""))
             if file_path.exists():
@@ -527,4 +527,4 @@ class UpdateManager:
                 except (PermissionError, FileNotFoundError, OSError, IsADirectoryError) as e:
                     raise Exception("Error while processing the file: ", str(e))
 
-            config.set_config("pending_update", None)
+            app_cfg.set_config("pending_update", None)

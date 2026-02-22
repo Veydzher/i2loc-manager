@@ -36,19 +36,19 @@ class CustomTableModel(QAbstractTableModel):
 
         self.update_data(terms, langs)
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()):
+    def rowCount(self, parent: QModelIndex = QModelIndex()):
         if self.terms:
             return len(self.terms)
 
-        return super().rowCount(parent)
+        return 0
 
-    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()):
+    def columnCount(self, parent: QModelIndex = QModelIndex()):
         if self.columns:
             return len(self.columns)
 
-        return super().columnCount(parent)
+        return 0
 
-    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
 
@@ -73,7 +73,7 @@ class CustomTableModel(QAbstractTableModel):
 
         return None
 
-    def setData(self, index: QModelIndex | QPersistentModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole):
+    def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole):
         if not index.isValid() or role != Qt.ItemDataRole.EditRole:
             return False
 
@@ -144,71 +144,39 @@ class CustomTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def add_language(self, name: str, code: str, flags: Ldf, copy_lang_index: int | None = None):
-        title, msg = check_language(name, code, flags, self.langs)
+        title, msg = check_language(name, code, flags, manager.get_languages())
         if title and msg:
             message_box(self.mw, title, msg)
             return
 
-        new_language = {
-            "name": name,
-            "code": code,
-            "flags": flags
-        }
-
-        manager_languages = manager.get_languages()
-        manager_languages.append(new_language)
-
-        new_language_index = manager_languages.index(new_language)
-
-        for idx, term in enumerate(manager.get_terms()):
-            new_translation = manager.get_translation(idx, copy_lang_index)
-            manager.add_translation(idx, new_language_index, new_translation, 0)
-
+        lang_idx, lang_data = manager.add_language(name, code, flags, copy_lang_index)
         self.mw.update_lang_selector()
+        return lang_idx, lang_data
 
     def remove_language(self, lang_index: int):
-        languages = manager.get_languages()
-        if not (0 <= lang_index < len(languages)):
-            return
-
-        languages.pop(lang_index)
-
-        for term in manager.get_terms():
-            translations = term["translations"]
-            flags = term["flags"]
-
-            if 0 <= lang_index < len(translations):
-                translations.pop(lang_index)
-
-            if 0 <= lang_index < len(flags):
-                flags.pop(lang_index)
-
+        manager.remove_language(lang_index)
         self.mw.update_lang_selector()
 
-    # Not using it for now
     def add_term(self, term_name: str = "", term_type: TermType = TermType.TEXT, term_desc: str = "", translations: list[str] | None = None, flags: list[int] | None = None):
         if translations is None:
             translations = []
+
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-
-        num_langs = len(self.langs)
-
-        manager.get_terms().append({
-            "name": term_name,
-            "type": term_type.displayed,
-            "desc": term_desc,
-            "translations": translations if translations else [term_name] * num_langs,
-            "flags": flags if flags else [0] * num_langs
-        })
+        term_idx, term_data = manager.add_term(term_name, term_type, term_desc, translations, flags)
         self.endInsertRows()
+        return term_idx, term_data
 
-    def _enable_undo(self, value: bool):
-        if self.mw.config_actions[4]:
+    def _enable_undo(self, value):
+        try:
             self.mw.config_actions[4].setEnabled(value)
+        except (IndexError, RuntimeError):
+            pass
 
-    def _enable_redo(self, value: bool):
-        if self.mw.config_actions[5]:
+    def _enable_redo(self, value):
+        try:
             self.mw.config_actions[5].setEnabled(value)
+        except (IndexError, RuntimeError):
+            pass
 
 
 class EditCommand(QUndoCommand):
@@ -324,7 +292,7 @@ class CustomTable(QTableView):
 
         header.blockSignals(True)
         for column in range(model.columnCount()):
-            header_text = model.headerData(column, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole.real)
+            header_text = model.headerData(column, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole)
 
             if not header_text:
                 continue
@@ -383,18 +351,10 @@ class CustomTable(QTableView):
         if not self._rows_to_resize:
             self._resize_timer.stop()
 
-    def _on_data_changed(self, top_left: QModelIndex | QPersistentModelIndex, bottom_right: QModelIndex | QPersistentModelIndex, _roles: Sequence[int]):
+    def _on_data_changed(self, top_left: QModelIndex, bottom_right: QModelIndex, _roles: Sequence[int]):
         if top_left and bottom_right:
             if self._is_row_range_visible(top_left.row(), bottom_right.row()):
                 self._queue_rows(range(top_left.row(), bottom_right.row() + 1))
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Tab and self.currentIndex().column() == self.table_model.columnCount() - 1:
-            self.model().insertColumn(self.table_model.columnCount())
-        elif event.key() == Qt.Key.Key_Return and self.currentIndex().row() == self.table_model.rowCount() - 1:
-            self.model().insertRow(self.table_model.rowCount())
-        else:
-            super().keyPressEvent(event)
 
     def undo_edit(self):
         if not self.table_model:
@@ -448,7 +408,12 @@ class CustomTable(QTableView):
             for index, old_value in editable_changes:
                 if undo_stack:
                     undo_stack.push(
-                        EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                        EditCommand(
+                            self.table_model,
+                            index.row(),
+                            index.column(),
+                            (old_value, "")
+                        )
                     )
                 else:
                     self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
@@ -533,7 +498,12 @@ class CustomTable(QTableView):
             for index, old_value, cell_value in editable_changes:
                 if undo_stack:
                     undo_stack.push(
-                        EditCommand(self.table_model, index.row(), index.column(), (old_value, cell_value))
+                        EditCommand(
+                            self.table_model,
+                            index.row(),
+                            index.column(),
+                            (old_value, cell_value)
+                        )
                     )
                 else:
                     self.table_model.setData(index, cell_value)
@@ -569,11 +539,15 @@ class CustomTable(QTableView):
             for index, old_value in editable_changes:
                 if undo_stack:
                     undo_stack.push(
-                        EditCommand(self.table_model, index.row(), index.column(), (old_value, ""))
+                        EditCommand(
+                            self.table_model,
+                            index.row(),
+                            index.column(),
+                            (old_value, "")
+                        )
                     )
                 else:
                     self.table_model.setData(index, "", Qt.ItemDataRole.EditRole)
         finally:
             if undo_stack:
                 undo_stack.endMacro()
-

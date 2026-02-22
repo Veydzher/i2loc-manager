@@ -96,10 +96,38 @@ def parse_raw_value(value: str):
     elif value.startswith('"') and value.endswith('"'):
         return unescape(value[1:-1])
 
-    elif value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
+    elif value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
         return int(value)
 
     try:
         return float(value)
     except (ValueError, TypeError):
         return value
+
+
+# Not using it for now
+def _parse_term_key(key: str) -> tuple[str, str | None]:
+    """Parse term key like 'Button[Touch]' into (term, specialization)"""
+    specialization = None
+
+    if key.endswith("]"):
+        bracket_pos = key.rfind("[")
+        if bracket_pos > 0:
+            specialization = key[bracket_pos + 1:-1].strip()
+            key = key[:bracket_pos].strip()
+
+    return key, specialization
+
+
+# Not using it for now
+def _parse_term_with_category(full_term: str) -> tuple[str, str]:
+    """Parse 'Category/Subcategory/Term' into (category, term)"""
+    parts = full_term.split("/")
+    if len(parts) > 1:
+        category = "/".join(parts[:-1])
+        term = parts[-1]
+    else:
+        category = "Default"
+        term = full_term
+
+    return category, term

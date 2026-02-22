@@ -43,7 +43,7 @@ Here is a guide on how to set up everything:
 
 Recommended Python version: 3.10+
 
-1. **Clone the repository:**
+1. **Fork and clone the repository:**
 ```bash
 git clone https://github.com/YOUR_USERNAME/i2loc-manager.git
 cd i2loc-manager
@@ -73,7 +73,7 @@ pip install -r requirements.txt
 
 5. **Run the program:**
 ```bash
-python i2loc_manager.py
+python main.py
 ```
 
 ## Dependencies

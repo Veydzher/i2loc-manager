@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import platform
@@ -71,12 +72,12 @@ class AppConfig:
             json.dump(self.recent, f, indent=2)
 
     def load_config(self):
+        self.config = {}
         if self.config_path.exists():
             with open(self.config_path, "r", encoding="utf-8") as f:
                 self.config = json.load(f)
         else:
-            print(f"[CONFIG] Could not find the configuration file, creating one with defaults...")
-            self.config = {"check_updates_on_startup": False, "language": "en-US", "theme": "Fusion"}
+            print("[CONFIG] Could not find the configuration file, creating empty one...")
             self.save_config()
 
     def save_config(self):
@@ -84,11 +85,38 @@ class AppConfig:
             json.dump(self.config, f, indent=2)
 
     def get_config(self, key: str, default: Any = None):
-        return self.config.get(key, default)
+        keys = key.split(".")
+        current = self.config
+
+        for k in keys:
+            if not isinstance(current, dict) or k not in current:
+                if default is not None:
+                    self.set_config(key, default)
+                    return default
+                return None
+            current = current[k]
+
+        return current
 
     def set_config(self, key: str, value: Any):
-        self.config[key] = value
-        self.save_config()
+        backup = copy.deepcopy(self.config)
+
+        try:
+            keys = key.split(".")
+            current = self.config
+
+            for k in keys[:-1]:
+                if k not in current or not isinstance(current[k], dict):
+                    current[k] = {}
+                current = current[k]
+
+            current[keys[-1]] = value
+
+            self.save_config()
+
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, json.JSONDecodeError) as e:
+            print(f"[CONFIG] Error when setting a config: {str(e)}")
+            self.config = backup
 
 
-config = AppConfig()
+app_cfg = AppConfig()

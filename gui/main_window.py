@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,20 +14,20 @@ from gui.export_module import ExportModule
 from gui.helpers import (
     FileWorker,
     message_box,
-    report,
     set_window_size
 )
 from gui.import_module import ImportModule
 from gui.langs_manage import LanguageManager
 from gui.updater import UpdateManager
-from utils.app_config import config
+from utils.app_config import app_cfg
 from utils.app_locales import fluent, ftr
 from utils.enums import FileExtension as Fe
 from utils.helpers import pathfind
 from utils.manager import manager
 
 class I2ManagerUI(QMainWindow):
-    VERSION = "1.1.0"
+    TITLE = "I2 Localization Manager"
+    VERSION = "1.1.5"
 
     def __init__(self):
         super().__init__()
@@ -41,7 +40,7 @@ class I2ManagerUI(QMainWindow):
 
         self.setAcceptDrops(True)
         self.setMinimumSize(900, 600)
-        self.setWindowTitle("I2 Localization Manager")
+        self.setWindowTitle(self.TITLE)
         self.setWindowIcon(QIcon(pathfind("assets\\icon.ico")))
         set_window_size(self)
 
@@ -55,8 +54,8 @@ class I2ManagerUI(QMainWindow):
         self._refresh_ui()
 
         self.update_manager.check_for_pending_update()
-        if config.get_config("check_updates_on_startup", True):
-            self.update_manager.check_for_updates(silent=True)
+        if app_cfg.get_config("check_updates_on_startup", True):
+            self.update_manager.check_for_updates(True)
 
     def setup_menu_bar(self):
         menu_bar = self.menuBar()
@@ -159,11 +158,11 @@ class I2ManagerUI(QMainWindow):
         check_updates_now = QAction(ftr("check-updates-now-button"), self)
         check_updates_now.setIcon(QIcon.fromTheme("system-software-update"))
         check_updates_now.setStatusTip(ftr("check-updates-now-tooltip"))
-        check_updates_now.triggered.connect(lambda: self.update_manager.check_for_updates())
+        check_updates_now.triggered.connect(self.update_manager.check_for_updates)
 
         check_updates_startup = QAction(ftr("check-updates-startup-button"), self)
         check_updates_startup.setCheckable(True)
-        check_updates_startup.setChecked(config.get_config("check_updates_on_startup", True))
+        check_updates_startup.setChecked(app_cfg.get_config("check_updates_on_startup", True))
         check_updates_startup.setStatusTip(ftr("check-updates-startup-tooltip"))
         check_updates_startup.triggered.connect(self._toggle_startup_updates)
 
@@ -227,7 +226,7 @@ class I2ManagerUI(QMainWindow):
         recent_menu = QMenu(ftr("open-recent-menu"), self)
         recent_menu.setIcon(QIcon.fromTheme("document-open-recent"))
 
-        recent_files = config.get_recent_files()
+        recent_files = app_cfg.get_recent_files()
         if recent_files:
             for file in recent_files[:max_count]:
                 action = QAction(file, self)
@@ -241,7 +240,7 @@ class I2ManagerUI(QMainWindow):
 
         clear_recent_button = QAction(ftr("clear-recent-button"), self)
         clear_recent_button.setStatusTip(ftr("clear-recent-tooltip"))
-        clear_recent_button.triggered.connect(lambda: (config.clear_recent_files(), self._refresh_ui()))
+        clear_recent_button.triggered.connect(lambda: (app_cfg.clear_recent_files(), self._refresh_ui()))
         clear_recent_button.setIcon(QIcon.fromTheme("edit-clear"))
         recent_menu.addAction(clear_recent_button)
 
@@ -249,7 +248,7 @@ class I2ManagerUI(QMainWindow):
 
     def setup_theme_menu(self):
         factory_themes = QStyleFactory.keys()
-        current_theme = config.get_config("theme", "Fusion")
+        current_theme = app_cfg.get_config("theme", "Fusion")
 
         theme_menu = QMenu(ftr("theme-menu"), self)
         theme_menu.setIcon(QIcon.fromTheme("preferences-desktop-accessibility"))
@@ -267,7 +266,7 @@ class I2ManagerUI(QMainWindow):
                 action.setChecked(False)
                 action.triggered.connect(
                     lambda checked=False, theme=factory_theme: (
-                        config.set_config("theme", theme),
+                        app_cfg.set_config("theme", theme),
                         self._refresh_ui()
                     )
                 )
@@ -407,8 +406,8 @@ class I2ManagerUI(QMainWindow):
 
         if not path.exists():
             message_box(self, "warning", ("warning-file-not-found", {"file_path": str(path)}))
-            if str(path) in config.get_recent_files():
-                config.remove_recent_file(str(path))
+            if str(path) in app_cfg.get_recent_files():
+                app_cfg.remove_recent_file(str(path))
                 self._refresh_ui()
             return
 
@@ -560,7 +559,7 @@ class I2ManagerUI(QMainWindow):
                     return
             elif reply == QMessageBox.StandardButton.Cancel:
                 return
-        
+
         event.accept()
 
     def _open_file_dialog(self):
@@ -576,7 +575,7 @@ class I2ManagerUI(QMainWindow):
 
     def _on_opened_file(self, file_path: str, result: Any):
         if result is True:
-            config.add_recent_file(file_path)
+            app_cfg.add_recent_file(file_path)
             self.status_bar_message(
                 ("opened-file", {"file_path": file_path}), 15000
             )
@@ -591,8 +590,8 @@ class I2ManagerUI(QMainWindow):
         self._refresh_ui()
 
     def _open_about_dialog(self):
-        self.about_dialog = About(self)
-        self.about_dialog.show()
+        about_dialog = About(self)
+        about_dialog.show()
 
     def _refresh_ui(self):
         if self.menuBar().children():
@@ -611,29 +610,19 @@ class I2ManagerUI(QMainWindow):
 
     @staticmethod
     def _toggle_startup_updates(checked: bool):
-        config.set_config("check_updates_on_startup", checked)
+        app_cfg.set_config("check_updates_on_startup", checked)
 
-    @staticmethod
-    def _set_theme_mode(theme: str):
+    def _set_theme_mode(self, theme: str):
         try:
+            application = QApplication.instance()
             application.setStyle(QStyleFactory.create(theme))
         except Exception as e:
             print(f"[ERROR] Error while setting '{theme}' style, defaulting to Fusion...\n", str(e))
             theme = "Fusion"
             application.setStyle(QStyleFactory.create(theme))
-            config.set_config("theme", theme)
+            app_cfg.set_config("theme", theme)
 
         if theme == "Fusion":
             application.setStyleSheet("QComboBox { combobox-popup: 0; }")
         else:
             application.setStyleSheet("QComboBox QAbstractItemView { background: palette(base); }")
-
-
-if __name__ == "__main__":
-    try:
-        application = QApplication(sys.argv)
-        window = I2ManagerUI()
-        window.show()
-        sys.exit(application.exec())
-    except Exception as exc:
-        report(str(exc))

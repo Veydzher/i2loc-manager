@@ -5,3 +5,4 @@ fluent-logger-pyramid>=0.0.3
 PySide6>=6.8
 nuitka>=2.8.4
 requests>=2.31.0
+cx-freeze
