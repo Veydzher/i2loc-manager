@@ -196,17 +196,9 @@ imported-data-success = Успішно імпортовано дані з фай
 ## Popup messages
 error-no-headers = Файл порожній або без заголовків.
 error-missing-headers = У файлі відсутні небхідні стовпці: {$headers}.
-error-no-langauges-columns = Файл не містить стовпців мов.
 error-no-available-model = Модель таблиці недоступна.
 error-import-file = Помилка імпортування файлу: {$error}.
 info-no-imported = Жодних нових перекладів для імпортування.
-info-success-import = Переклади успішно імпортовано.
-
-    Оновлено {$count ->
-        [one] {$count} переклад
-        [few] {$count} переклади
-        *[other] {$count} перекладів
-    }.
 
 
 ## Manage languages module

@@ -54,7 +54,7 @@ class I2ManagerUI(QMainWindow):
         self._refresh_ui()
 
         self.update_manager.check_for_pending_update()
-        if app_cfg.get_config("check_updates_on_startup", True):
+        if app_cfg.get_config("update.check_updates_on_startup", True):
             self.update_manager.check_for_updates(True)
 
     def setup_menu_bar(self):
@@ -162,7 +162,7 @@ class I2ManagerUI(QMainWindow):
 
         check_updates_startup = QAction(ftr("check-updates-startup-button"), self)
         check_updates_startup.setCheckable(True)
-        check_updates_startup.setChecked(app_cfg.get_config("check_updates_on_startup", True))
+        check_updates_startup.setChecked(app_cfg.get_config("update.check_updates_on_startup", True))
         check_updates_startup.setStatusTip(ftr("check-updates-startup-tooltip"))
         check_updates_startup.triggered.connect(self._toggle_startup_updates)
 
@@ -248,7 +248,7 @@ class I2ManagerUI(QMainWindow):
 
     def setup_theme_menu(self):
         factory_themes = QStyleFactory.keys()
-        current_theme = app_cfg.get_config("theme", "Fusion")
+        current_theme = app_cfg.get_config("app.theme", "Fusion")
 
         theme_menu = QMenu(ftr("theme-menu"), self)
         theme_menu.setIcon(QIcon.fromTheme("preferences-desktop-accessibility"))
@@ -266,7 +266,7 @@ class I2ManagerUI(QMainWindow):
                 action.setChecked(False)
                 action.triggered.connect(
                     lambda checked=False, theme=factory_theme: (
-                        app_cfg.set_config("theme", theme),
+                        app_cfg.set_config("app.theme", theme),
                         self._refresh_ui()
                     )
                 )
@@ -610,7 +610,7 @@ class I2ManagerUI(QMainWindow):
 
     @staticmethod
     def _toggle_startup_updates(checked: bool):
-        app_cfg.set_config("check_updates_on_startup", checked)
+        app_cfg.set_config("update.check_updates_on_startup", checked)
 
     def _set_theme_mode(self, theme: str):
         try:
@@ -620,7 +620,7 @@ class I2ManagerUI(QMainWindow):
             print(f"[ERROR] Error while setting '{theme}' style, defaulting to Fusion...\n", str(e))
             theme = "Fusion"
             application.setStyle(QStyleFactory.create(theme))
-            app_cfg.set_config("theme", theme)
+            app_cfg.set_config("app.theme", theme)
 
         if theme == "Fusion":
             application.setStyleSheet("QComboBox { combobox-popup: 0; }")

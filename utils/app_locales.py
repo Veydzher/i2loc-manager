@@ -31,12 +31,12 @@ class AppLocale:
 
         self._localizer_cache = {}
         self.loader = FluentResourceLoader(str(self.locale_dir / "{locale}"))
-        self.current_locale = app_cfg.get_config("language") or self.default_locale
+        self.current_locale = app_cfg.get_config("app.language") or self.default_locale
 
         if self.current_locale not in self.available_locales:
             print(f"[LOCALE] Warning: Locale '{self.current_locale}' not found, falling back to '{self.default_locale}' locale.")
             self.current_locale = self.default_locale
-            app_cfg.set_config("language", self.current_locale)
+            app_cfg.set_config("app.language", self.current_locale)
 
         self.get_localizer(self.current_locale)
         self._setup_translation_cache()
@@ -53,7 +53,7 @@ class AppLocale:
 
         self._cached_translate.cache_clear()
         self.get_localizer(self.current_locale)
-        app_cfg.set_config("language", self.current_locale)
+        app_cfg.set_config("app.language", self.current_locale)
 
     def _setup_translation_cache(self):
         @lru_cache(maxsize=self.cache_size)

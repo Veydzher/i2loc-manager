@@ -5,14 +5,14 @@ from typing import Any
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import (
     QFileDialog, QVBoxLayout, QDialog, QWidget, QHBoxLayout, QScrollArea, QCheckBox, QLabel,
-    QSpacerItem, QSizePolicy, QDialogButtonBox, QComboBox, QGroupBox, QGridLayout, )
+    QSpacerItem, QSizePolicy, QDialogButtonBox, QComboBox, QGroupBox, QGridLayout
+)
 
-from gui.helpers import ConfigurableComboBox, message_box, push_button, ConfigurableLineEdit
+from gui.helpers import ConfigurableComboBox, ConfigurableLineEdit, CustomPushButton, message_box
 from utils.app_locales import ftr
 from utils.enums import (
     FileExtension as Fe,
-    FileSeperator as Fs,
-    LanguageDataFlags as Ldf,
+    LanguageDataFlags as Ldf
 )
 from utils.manager import manager
 
@@ -20,15 +20,23 @@ from utils.manager import manager
 class CsvOptions:
     def __init__(
             self,
+            delimiter: str = ",",
             quoting: int = csv.QUOTE_MINIMAL,
             quote_char: str = "\"",
             line_terminator: str = "\r\n",
             escape_char: str | None = None
     ):
+        self.delimiter = delimiter
         self.quoting = quoting
         self.quote_char = quote_char
         self.line_terminator = line_terminator
         self.escape_char = escape_char
+
+    @property
+    def extension(self):
+        if self.delimiter == "\t":
+            return Fe.TSV.value
+        return Fe.CSV.value
 
 
 class ExportModule:
@@ -42,11 +50,24 @@ class ExportModule:
 
         selected_languages, csv_options = result
 
+        ext = csv_options.extension
+        if ext == Fe.TSV.value:
+            file_filter = (
+                f"{ftr('tsv-file')} (*{Fe.TSV.value});;"
+                f"{ftr('csv-file')} (*{Fe.CSV.value});;"
+                f"{ftr('all-files')} (*.*)"
+            )
+        else:
+            file_filter = (
+                f"{ftr('csv-file')} (*{Fe.CSV.value});;"
+                f"{ftr('tsv-file')} (*{Fe.TSV.value});;"
+                f"{ftr('all-files')} (*.*)"
+            )
+
         path = QFileDialog.getSaveFileName(
             self.mw, ftr("save-title"),
             f"{manager.file_name}-EXPORT",
-            f"{ftr('csv-file')} (*{Fe.CSV.value});;"
-            f"{ftr('tsv-file')} (*{Fe.TSV.value})"
+            file_filter
         )[0]
 
         if not path:
@@ -55,14 +76,13 @@ class ExportModule:
         try:
             path = Path(path)
             file_name = path.stem
-            delimiter = Fs[Fe(path.suffix).name].value
             terms = manager.get_terms()
             if not terms:
                 message_box(self.mw, "warning", "warning-no-terms-found")
                 return
 
             self.mw.status_bar_message(("exporting-file-data", {"file_name": file_name}))
-            self.export_selected_languages(path, delimiter, terms, selected_languages, csv_options)
+            self.export_selected_languages(path, terms, selected_languages, csv_options)
         except Exception as e:
             message_box(self.mw, "error", ("error-export-file", {"error": str(e)}))
 
@@ -77,6 +97,13 @@ class ExportModule:
         dialog.setMinimumSize(750, 400)
         dialog.setMaximumSize(800, 450)
         dialog.setContentsMargins(5, 5, 5, 5)
+        dialog.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
         dialog.setWindowTitle(ftr("export-translations-title"))
 
         main_layout = QVBoxLayout(dialog)
@@ -111,8 +138,8 @@ class ExportModule:
                     widget.set_checked(state)
 
         button_layout = QHBoxLayout()
-        select_all_button = push_button(ftr("select-all-button"), 60, 30, 160, 35)
-        deselect_all_button = push_button(ftr("deselect-all-button"), 60, 30, 160, 35)
+        select_all_button = CustomPushButton("select-all-button", 60, 30, 160, 35)
+        deselect_all_button = CustomPushButton("deselect-all-button", 60, 30, 160, 35)
 
         for button, state in [(select_all_button, True), (deselect_all_button, False)]:
             button.clicked.connect(lambda _, s=state: set_all(s))
@@ -128,7 +155,28 @@ class ExportModule:
         csv_grid = QGridLayout(csv_group)
         csv_grid.setColumnMinimumWidth(0, 120)
 
-        csv_grid.addWidget(QLabel(ftr("export-quoting-label")), 0, 0)
+        csv_grid.addWidget(QLabel(ftr("export-delimiter-label")), 0, 0)
+
+        delimiter_row = QHBoxLayout()
+        delimiter_combo = ConfigurableComboBox(
+            [(f"{ftr('export-delimiter-comma')} {ftr('default-label')}", ","),
+             (ftr("export-delimiter-tab"), "\t"),
+             (ftr("export-delimiter-custom"), None)],
+            "export.delimiter_preset"
+        )
+
+        custom_delimiter_edit = ConfigurableLineEdit(
+            "export.custom_delimiter",
+            maxLength=1,
+            alignment=Qt.AlignmentFlag.AlignCenter
+        )
+        custom_delimiter_edit.setFixedWidth(40)
+
+        delimiter_row.addWidget(delimiter_combo)
+        delimiter_row.addWidget(custom_delimiter_edit)
+        csv_grid.addLayout(delimiter_row, 0, 1)
+
+        csv_grid.addWidget(QLabel(ftr("export-quoting-label")), 1, 0)
         quoting_combo = ConfigurableComboBox(
             [(f"{ftr('export-quoting-minimal')} {ftr('default-label')}", csv.QUOTE_MINIMAL),
              (ftr("export-quoting-all-fields"), csv.QUOTE_ALL),
@@ -137,32 +185,35 @@ class ExportModule:
             "export.quoting",
             maxVisibleItems=3
         )
-        csv_grid.addWidget(quoting_combo, 0, 1)
+        csv_grid.addWidget(quoting_combo, 1, 1)
 
-        csv_grid.addWidget(QLabel(ftr("export-quote-character-label")), 1, 0)
+        csv_grid.addWidget(QLabel(ftr("export-quote-character-label")), 2, 0)
         quote_char_combo = ConfigurableComboBox(
-            [(f"\" {ftr('default-label')}", "\""), ("'", "'")],
+            [(f'\" {ftr("default-label")}', '"'), ("'", "'")],
             "export.quote_character"
         )
-        csv_grid.addWidget(quote_char_combo, 1, 1)
+        csv_grid.addWidget(quote_char_combo, 2, 1)
 
-        csv_grid.addWidget(QLabel(ftr("export-escape-character-label")), 2, 0)
+        csv_grid.addWidget(QLabel(ftr("export-escape-character-label")), 3, 0)
         escape_char_edit = ConfigurableLineEdit(
             "export.escape_character",
             placeholderText=ftr("export-escape-character-optional"),
             maxLength=1
         )
-        escape_char_edit.setMaximumWidth(200)
-        csv_grid.addWidget(escape_char_edit, 2, 1)
+        csv_grid.addWidget(escape_char_edit, 3, 1)
 
-        csv_grid.addWidget(QLabel(ftr("export-line-ending-label")), 3, 0)
+        csv_grid.addWidget(QLabel(ftr("export-line-ending-label")), 4, 0)
         line_terminator_combo = ConfigurableComboBox(
             [("CRLF - Windows (\\r\\n)", "\r\n"),
              ("LF - Unix & macOS (\\n)", "\n"),
              ("CR - Classic Mac OS (\\r)", "\r")],
             "export.line_terminator"
         )
-        csv_grid.addWidget(line_terminator_combo, 3, 1)
+        csv_grid.addWidget(line_terminator_combo, 4, 1)
+
+        def on_delimiter_changed():
+            is_custom = delimiter_combo.currentData() is None
+            custom_delimiter_edit.setEnabled(is_custom)
 
         def on_quoting_changed():
             if quoting_combo.currentData() == csv.QUOTE_NONE:
@@ -172,7 +223,10 @@ class ExportModule:
 
             escape_char_edit.setPlaceholderText(text)
 
+        delimiter_combo.currentIndexChanged.connect(on_delimiter_changed)
         quoting_combo.currentIndexChanged.connect(on_quoting_changed)
+
+        on_delimiter_changed()
 
         right_layout.addWidget(csv_group)
         sub_layout.addLayout(left_layout)
@@ -202,13 +256,23 @@ class ExportModule:
         def update_dialog_buttons():
             any_checked = any(widget.is_checked() for widget in widgets)
             all_checked = all(widget.is_checked() for widget in widgets)
+            is_custom = delimiter_combo.currentData() is None
+            custom_valid = not is_custom or bool(custom_delimiter_edit.text().strip())
 
             select_all_button.setDisabled(all_checked)
             deselect_all_button.setDisabled(not any_checked)
 
-            ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
-            ok_button.setEnabled(any_checked)
-            ok_button.setToolTip(ftr("export-button-disabled") if not any_checked else "")
+            tooltip = ""
+            if not any_checked:
+                tooltip = ftr("export-button-disabled")
+            elif not custom_valid:
+                tooltip = ftr("export-button-no-custom-delimiter")
+
+            export_button.setEnabled(any_checked and custom_valid)
+            export_button.setToolTip(tooltip)
+
+        custom_delimiter_edit.textChanged.connect(lambda _: update_dialog_buttons())
+        delimiter_combo.currentIndexChanged.connect(lambda _: update_dialog_buttons())
 
         update_dialog_buttons()
 
@@ -224,12 +288,18 @@ class ExportModule:
             message_box(self.mw, "warning", "warning-no-languages-selected")
             return None
 
-        escape_char_value = escape_char_edit.text().strip()
+        preset = delimiter_combo.currentData()
+        if preset is None:
+            delimiter = custom_delimiter_edit.text().strip() or ","
+        else:
+            delimiter = preset
+
         csv_options = CsvOptions(
+            delimiter,
             quoting_combo.currentData(),
             quote_char_combo.currentData(),
             line_terminator_combo.currentData(),
-            escape_char_value
+            escape_char_edit.text().strip() or None
         )
 
         return selected_languages, csv_options
@@ -237,7 +307,6 @@ class ExportModule:
     def export_selected_languages(
             self,
             file_path: Path,
-            delimiter: str,
             terms: list[dict[str, Any]],
             selected_languages: list,
             csv_options: CsvOptions | None = None
@@ -245,12 +314,13 @@ class ExportModule:
         if csv_options is None:
             csv_options = CsvOptions()
 
-        writer_kwargs = dict(
-            delimiter=delimiter,
-            quoting=csv_options.quoting,
-            quotechar=csv_options.quote_char,
-            lineterminator=csv_options.line_terminator,
-        )
+        writer_kwargs = {
+            "delimiter": csv_options.delimiter,
+            "quoting": csv_options.quoting,
+            "quotechar": csv_options.quote_char,
+            "lineterminator": csv_options.line_terminator,
+        }
+
         if csv_options.escape_char:
             writer_kwargs["escapechar"] = csv_options.escape_char
 

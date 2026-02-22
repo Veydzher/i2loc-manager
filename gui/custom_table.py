@@ -147,7 +147,7 @@ class CustomTableModel(QAbstractTableModel):
         title, msg = check_language(name, code, flags, manager.get_languages())
         if title and msg:
             message_box(self.mw, title, msg)
-            return
+            return None, None
 
         lang_idx, lang_data = manager.add_language(name, code, flags, copy_lang_index)
         self.mw.update_lang_selector()
@@ -157,7 +157,14 @@ class CustomTableModel(QAbstractTableModel):
         manager.remove_language(lang_index)
         self.mw.update_lang_selector()
 
-    def add_term(self, term_name: str = "", term_type: TermType = TermType.TEXT, term_desc: str = "", translations: list[str] | None = None, flags: list[int] | None = None):
+    def add_term(
+            self,
+            term_name: str = "",
+            term_type: TermType = TermType.TEXT,
+            term_desc: str = "",
+            translations: list[str] | None = None,
+            flags: list[int] | None = None
+    ):
         if translations is None:
             translations = []
 

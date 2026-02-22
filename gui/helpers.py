@@ -46,16 +46,13 @@ class ConfigurableCheckBox(QCheckBox):
 class ConfigurableComboBox(QComboBox):
     def __init__(self, items: list[tuple[str, Any]], cfg_key: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if items:
-            for key, value in items:
-                self.addItem(key, value)
+        cfg_value = app_cfg.get_config(cfg_key, items[0][1] if items else None)
+        for key, value in items:
+            self.addItem(key, value)
 
-        cfg_index = app_cfg.get_config(cfg_key, 0)
-        if cfg_index > self.count():
-            cfg_index = 0
-
-        self.setCurrentIndex(cfg_index)
-        self.currentIndexChanged.connect(lambda index: app_cfg.set_config(cfg_key, index))
+        index = self.findData(cfg_value)
+        self.setCurrentIndex(index if index != -1 else 0)
+        self.currentIndexChanged.connect(lambda _: app_cfg.set_config(cfg_key, self.currentData()))
 
 
 class CollapsibleSection(QWidget):
@@ -103,6 +100,7 @@ class CollapsibleSection(QWidget):
         self.toggle_animation = QPropertyAnimation(self.content_area, b"maximumHeight")
         self.toggle_animation.setDuration(self._animation_duration)
         self.toggle_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.toggle_animation.finished.connect(lambda: self.window().adjustSize())
 
         main_layout.addWidget(self.toggle_button)
         main_layout.addWidget(self.content_area)
@@ -157,10 +155,6 @@ class CollapsibleSection(QWidget):
     def add_layout(self, layout):
         self.content_layout.addLayout(layout)
 
-    def cleanup(self):
-        if self.toggle_animation.state() == QPropertyAnimation.State.Running:
-            self.toggle_animation.stop()
-
 
 def localize_buttons(box: QMessageBox | QDialogButtonBox):
     for button in box.buttons():
@@ -169,13 +163,20 @@ def localize_buttons(box: QMessageBox | QDialogButtonBox):
             button.setText(ftr(f"{button_name.lower()}-button"))
 
 
-def push_button(text: str, min_w: int = 0, min_h: int = 0, max_w: int = 100, max_h: int = 100):
-    text = ftr(text) if text.islower() and "-" in text else text
-    button = QPushButton()
-    button.setMinimumSize(min_w, min_h)
-    button.setMaximumSize(max_w, max_h)
-    button.setText(text)
-    return button
+class CustomPushButton(QPushButton):
+    def __init__(
+            self,
+            text: str,
+            min_w: int = 0,
+            min_h: int = 0,
+            max_w: int = 100,
+            max_h: int = 100
+    ):
+        super().__init__()
+        text = ftr(text) if text.islower() and "-" in text else text
+        self.setText(text)
+        self.setMinimumSize(min_w, min_h)
+        self.setMaximumSize(max_w, max_h)
 
 
 def message_box(

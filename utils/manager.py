@@ -167,7 +167,7 @@ class I2Manager:
                     translations.append("")
                 translations[lang_index] = value
 
-    def get_translation_flag(self, term_index: int, lang_index: int) -> int:
+    def get_translation_flag(self, term_index: int, lang_index: int):
         """Get the flag from a given term and language.
 
         :param term_index: index of the term in the `terms` list.

@@ -89,14 +89,12 @@ warning-file-not-found = File does not exist: {$file_path}.
 error-invalid-file = Invalid file.
 error-invalid-extension = Invalid file extension.
 error-no-terms-language = No terms/languages found!
-error-unknown-import-type = Unknown import type: {$type}.
 
 error-save-failed = Failed to save: {$error}.
 error-invalid-data = Invalid data format: {$error}.
 error-file-access = File access error: {$error}.
 
 warning-no-languages = No languages defined in the file.
-warning-invalid-language-format = Invalid language format.
 warning-language-exists = Language '{$language}' already exists!
 
 question-save-file-open = Would you like to save changes to the file?
@@ -152,8 +150,14 @@ select-all-button = Select all
 deselect-all-button = Deselect all
 export-button = Export
 export-button-disabled = Select at least one language to export.
+export-button-no-custom-delimiter = Enter a custom delimiter to export.
 
 export-advanced-options-title = Advanced CSV Options
+export-delimiter-label = Delimiter:
+export-delimiter-comma = Comma
+export-delimiter-tab = Tab
+export-delimiter-custom = Custom...
+
 export-quoting-label = Quoting:
 export-quoting-minimal = Minimal
 export-quoting-all-fields = All Fields
@@ -195,16 +199,24 @@ info-success-export = Successfully exported {$translation_num ->
 import-translations-title = Import Translations
 
 import-mode-title = Import Mode
-import-mode-merge = Merge - update exiting, add new ones
-import-mode-replace = Replace - clear all, import everything
-import-mode-add-new = Add New Only - skip existing
-import-mode-update-only = Update Only - no new content
+import-mode-merge = Merge
+import-mode-merge-desc = Update existing terms and add new ones.
+import-mode-replace = Replace
+import-mode-replace-desc = Clear all existing content and import everything from the file.
+import-mode-add-new = Add New Only
+import-mode-add-new-desc = Only import new terms and languages, skip anything that already exists.
+import-mode-update-only = Update Only
+import-mode-update-only-desc = Only update existing content, new terms and languages will be ignored.
 
 import-options-title = Import Options
 import-create-terms = Create Missing Terms
+import-create-terms-tooltip = Create terms that do not exist in the current content.
 import-update-types = Update Term Types
+import-update-types-tooltip = Overwrite each term's type in the current content with the imported value.
 import-update-descriptions = Update Term Descriptions
+import-update-descriptions-tooltip = Overwrite each term's description in the current content with the imported value.
 import-skip-empty = Skip Empty Translations
+import-skip-empty-tooltip = Ignore cells with an empty value.
 
 import-select-languages = Select which languages you want to import to:
 imported-language-label = <b>Imported Language</b>
@@ -216,6 +228,7 @@ import-auto-map-toggle = Auto-Map Languages
 import-auto-map-button = Auto-Map
 import-clear-mappings-button = Clear All
 import-button = Import
+import-button-disabled = Select at least one target language to import.
 
 import-progress-label = Checking translations to import...
 import-progress-title = Importing
@@ -246,16 +259,9 @@ imported-data-success = Successfully imported data from {$file_name}.
 ## Popup messages
 error-no-headers = The file is empty or has no headers.
 error-missing-headers = The file is missing required columns: {$headers}.
-error-no-langauges-columns = The file does not contain any language columns.
 error-no-available-model = No table model available.
 error-import-file = Failed to import file: {$error}.
 info-no-imported = No new translations to import.
-info-success-import = Successfully imported translations.
-
-    Updated {$count ->
-        [one] {$count} translation
-        *[other] {$count} translations
-    }.
 
 
 ## Manage languages module
@@ -284,22 +290,22 @@ lang-flag-disabled = Disabled
 
 add-language-title = {-ml-title-term}: Add Language
 add-language-selection = Language Selection
-add-language-manually = Enter manually...
+add-language-manually = Enter Manually...
 add-language-details = Language Details
-add-language-native-name = Use native name
+add-language-native-name = Use Native Name
 add-language-name = Name:
 add-language-code = Code:
 add-language-flag = State:
 add-language-initialize = Initialize with
-add-language-initialize-option-1 = Empty strings
-add-language-initialize-option-2 = Copy strings from:
+add-language-initialize-option-1 = Empty Strings
+add-language-initialize-option-2 = Copy Strings From:
 
 ## Popup messages
 confirm-language-removal = Are you sure you want to remove '{$language}' language?
 
     This action cannot be undone.
 warning-invalid-language = Please enter both a language name and code.
-warning-duplicate-language = A language named '{$name}' already exists.
 warning-duplicate-code = A language with the code '{$code}' already exists.
-warning-reserved-names = The name or code you entered is reserved. Please use a different one.
+warning-reserved-names = The name you entered is reserved. Please use a different one.
+warning-reserved-codes = The code you entered is reserved. Please use a different one.
 warning-invalid-code-letters = Code of the language should contain ASCII letters only.

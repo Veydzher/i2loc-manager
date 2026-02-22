@@ -7,10 +7,10 @@ from PySide6.QtGui import QUndoCommand
 from PySide6.QtWidgets import (
     QFileDialog, QDialog, QLabel, QComboBox, QProgressDialog, QVBoxLayout,
     QGridLayout, QDialogButtonBox, QWidget, QScrollArea, QHBoxLayout,
-    QRadioButton, QButtonGroup, QTextEdit, QGroupBox, QCheckBox
+    QRadioButton, QButtonGroup, QTextEdit, QGroupBox, QCheckBox, QSizePolicy, QMessageBox
 )
 
-from gui.helpers import ConfigurableCheckBox, CollapsibleSection, message_box, push_button
+from gui.helpers import ConfigurableCheckBox, CollapsibleSection, CustomPushButton, message_box
 from utils.app_locales import ftr
 from utils.enums import (
     FileExtension as Fe,
@@ -18,7 +18,7 @@ from utils.enums import (
     TermType,
     LanguageDataFlags as Ldf
 )
-from utils.helpers import normalise
+from utils.helpers import normalise, check_language
 from utils.manager import manager
 
 REQUIRED_COLUMNS = ["Key", "Type", "Desc"]
@@ -126,17 +126,14 @@ class ImportModule:
         if not path.is_file():
             return
 
-        file_name = path.name
-        file_suffix = path.suffix
-
-        if file_suffix not in [Fe.CSV.value, Fe.TSV.value]:
+        if path.suffix not in [Fe.CSV.value, Fe.TSV.value]:
             message_box(self.mw, "error", "error-invalid-file")
             return
 
-        self.mw.status_bar_message(("importing-file-data", {"file_name": file_name}))
+        self.mw.status_bar_message(("importing-file-data", {"file_name": path.name}))
 
         try:
-            csv_data, headers = self._read_csv_file(path, file_suffix)
+            csv_data, headers = self._read_csv_file(path)
             if not csv_data:
                 return
 
@@ -153,21 +150,27 @@ class ImportModule:
                 message_box(self.mw, "error", "error-no-available-model")
                 return
 
-            stats = self._import_data(csv_data, config, file_name)
-            self._show_import_results(stats, file_name)
+            stats = self._import_data(csv_data, config, path)
+            self._show_import_results(stats, path.name)
 
         except Exception as e:
             message_box(self.mw, "error", ("error-import-file", {"error": str(e)}))
 
     @staticmethod
-    def _read_csv_file(path: Path, file_suffix: str):
-        delimiter = Fs[Fe(file_suffix).name].value
-
+    def _read_csv_file(path: str | Path):
         csv_data = []
         headers = []
 
-        # utf-8-sig handles BOM from Excel exports transparently
         with open(path, "r", encoding="utf-8-sig", newline="") as file:
+            sample = file.read(8192)
+            file.seek(0)
+
+            try:
+                dialect = csv.Sniffer().sniff(sample)
+                delimiter = dialect.delimiter
+            except csv.Error:
+                delimiter = Fs[Fe.CSV.name].value
+
             reader = csv.DictReader(file, delimiter=delimiter)
             headers = list(reader.fieldnames) if reader.fieldnames else []
 
@@ -235,32 +238,22 @@ class ImportModule:
 
         dialog = QDialog(self.mw)
         dialog.setWindowTitle(ftr("import-translations-title"))
-        dialog.setMinimumSize(600, 500)
-        dialog.setMaximumSize(650, 550)
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dialog.setMinimumSize(600, 300)
+        dialog.setMaximumSize(650, 700)
 
         outer_layout = QVBoxLayout(dialog)
+        outer_layout.setSpacing(8)
 
         # === Top Panel ===
         top_layout = QHBoxLayout()
-        top_layout.setContentsMargins(10, 10, 10, 10)
-
-        # === Options ===
-        options_group = QGroupBox(ftr("import-options-title"))
-        options_layout = QVBoxLayout(options_group)
-
-        create_terms_check = ConfigurableCheckBox("import-create-terms", "import.create_terms")
-        update_types_check = ConfigurableCheckBox("import-update-types", "import.update_types")
-        update_desc_check = ConfigurableCheckBox("import-update-descriptions", "import.update_descriptions")
-        skip_empty_check = ConfigurableCheckBox("import-skip-empty", "import.skip_empty")
-
-        options_layout.addWidget(create_terms_check)
-        options_layout.addWidget(update_types_check)
-        options_layout.addWidget(update_desc_check)
-        options_layout.addWidget(skip_empty_check)
+        top_layout.setContentsMargins(10, 10, 10, 0)
+        top_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # === Modes ===
         mode_group = QGroupBox(ftr("import-mode-title"))
-        mode_layout = QVBoxLayout(mode_group)
+        mode_group.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        mode_outer = QVBoxLayout(mode_group)
 
         mode_buttons = QButtonGroup(dialog)
 
@@ -276,14 +269,46 @@ class ImportModule:
         mode_buttons.addButton(add_new_radio, UpdateMode.ADD_NEW_ONLY.value)
         mode_buttons.addButton(update_only_radio, UpdateMode.UPDATE_ONLY.value)
 
-        mode_layout.addWidget(merge_radio)
-        mode_layout.addWidget(replace_radio)
-        mode_layout.addWidget(add_new_radio)
-        mode_layout.addWidget(update_only_radio)
+        mode_descriptions = {
+            UpdateMode.MERGE.value: ftr("import-mode-merge-desc"),
+            UpdateMode.REPLACE.value: ftr("import-mode-replace-desc"),
+            UpdateMode.ADD_NEW_ONLY.value: ftr("import-mode-add-new-desc"),
+            UpdateMode.UPDATE_ONLY.value: ftr("import-mode-update-only-desc"),
+        }
 
-        top_layout.addWidget(options_group)
-        top_layout.addStretch()
-        top_layout.addWidget(mode_group)
+        mode_desc_label = QLabel(mode_descriptions[UpdateMode.MERGE.value])
+        mode_desc_label.setWordWrap(True)
+        mode_desc_label.setStyleSheet("QLabel { color: #888888; font-size: 11px; }")
+
+        for radio in [merge_radio, replace_radio, add_new_radio, update_only_radio]:
+            mode_outer.addWidget(radio)
+
+        mode_outer.addSpacing(4)
+        mode_outer.addWidget(mode_desc_label)
+
+        # === Options ===
+        options_group = QGroupBox(ftr("import-options-title"))
+        options_group.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        options_layout = QVBoxLayout(options_group)
+
+        create_terms_check = ConfigurableCheckBox("import-create-terms", "import.create_terms")
+        update_types_check = ConfigurableCheckBox("import-update-types", "import.update_types")
+        update_desc_check = ConfigurableCheckBox("import-update-descriptions", "import.update_descriptions")
+        skip_empty_check = ConfigurableCheckBox("import-skip-empty", "import.skip_empty")
+
+        create_terms_check.setToolTip(ftr("import-create-terms-tooltip"))
+        update_types_check.setToolTip(ftr("import-update-types-tooltip"))
+        update_desc_check.setToolTip(ftr("import-update-descriptions-tooltip"))
+        skip_empty_check.setToolTip(ftr("import-skip-empty-tooltip"))
+
+        options_layout.addWidget(create_terms_check)
+        options_layout.addWidget(update_types_check)
+        options_layout.addWidget(update_desc_check)
+        options_layout.addWidget(skip_empty_check)
+
+        top_layout.addWidget(mode_group, 0, Qt.AlignmentFlag.AlignTop)
+        top_layout.addSpacing(8)
+        top_layout.addWidget(options_group, 0, Qt.AlignmentFlag.AlignTop)
 
         outer_layout.addLayout(top_layout)
 
@@ -298,6 +323,8 @@ class ImportModule:
         advanced_section.add_widget(mapping_label)
 
         scroll_area = QScrollArea()
+        scroll_area.setMinimumHeight(150)
+        scroll_area.setMaximumHeight(200)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setWidgetResizable(True)
@@ -316,6 +343,8 @@ class ImportModule:
         mappings = {}
         row = 1
 
+        current_languages = manager.get_languages_copy()
+
         for csv_lang in csv_languages:
             display_name = csv_lang["original"]
             grid.addWidget(QLabel(display_name), row, 0)
@@ -326,6 +355,11 @@ class ImportModule:
 
             for lang in existing_langs:
                 combo.addItem(lang)
+
+            already_exists = check_language(csv_lang["name"], csv_lang["code"], Ldf.ENABLED, current_languages)
+            if already_exists != (None, None):
+                item = combo.model().item(1)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
 
             combo.setCurrentIndex(0)
             grid.addWidget(combo, row, 1)
@@ -338,18 +372,62 @@ class ImportModule:
         advanced_section.add_widget(scroll_area)
 
         mapping_button_layout = QHBoxLayout()
-        manual_map_button = push_button(ftr("import-auto-map-button"), 60, 30, 160, 35)
-        clear_button = push_button(ftr("import-clear-mappings-button"), 60, 30, 160, 35)
+        manual_map_button = CustomPushButton("import-auto-map-button", 60, 30, 160, 35)
+        clear_button = CustomPushButton("import-clear-mappings-button", 60, 30, 160, 35)
 
         mapping_button_layout.addWidget(manual_map_button)
         mapping_button_layout.addWidget(clear_button)
         mapping_button_layout.addStretch()
         advanced_section.add_layout(mapping_button_layout)
 
+        advanced_section.set_expanded(True)
+
         outer_layout.addWidget(advanced_section)
-        outer_layout.addStretch()
+
+        # === Dialog Buttons ===
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+
+        import_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        import_button.setMinimumSize(60, 30)
+        import_button.setMaximumSize(160, 35)
+        import_button.setText(ftr("import-button"))
+
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        cancel_button.setMinimumSize(60, 30)
+        cancel_button.setMaximumSize(160, 35)
+        cancel_button.setText(ftr("cancel-button"))
+
+        outer_layout.addWidget(button_box)
 
         # === Misc. Functions ===
+        def on_mode_changed(button_id: int):
+            mode_desc_label.setText(mode_descriptions.get(button_id, ""))
+
+        mode_buttons.idToggled.connect(lambda btn_id, checked: on_mode_changed(btn_id) if checked else None)
+
+        def accept_dialog():
+            if mode_buttons.checkedId() == UpdateMode.REPLACE.value:
+                confirm = message_box(
+                    self.mw,
+                    "question",
+                    "import-replace-confirm-message",
+                    standard_buttons=(
+                        QMessageBox.StandardButton.Yes
+                        | QMessageBox.StandardButton.Cancel,
+                        QMessageBox.StandardButton.Cancel
+                    )
+                )
+
+                if confirm == QMessageBox.StandardButton.Yes:
+                    dialog.accept()
+            else:
+                dialog.accept()
+
+        button_box.accepted.connect(accept_dialog)
+        button_box.rejected.connect(dialog.reject)
+
         def set_manual_mapping_enabled(enabled: bool):
             scroll_area.setEnabled(enabled)
             manual_map_button.setEnabled(not enabled)
@@ -389,19 +467,22 @@ class ImportModule:
         def update_mapping_button():
             any_mapped = any(combo.currentIndex() != 0 for combo in mappings.values())
             clear_button.setEnabled(any_mapped and not auto_map_check.isChecked())
+            manual_map_button.setEnabled(not auto_map_check.isChecked() and not any_mapped)
+            import_button.setEnabled(any_mapped)
+            import_button.setToolTip(ftr("import-button-disabled") if not any_mapped else "")
 
         def clear_all_mappings():
-            manual_map_button.setEnabled(True)
             for combo in mappings.values():
                 combo.setCurrentIndex(0)
-
-        for combo in mappings.values():
-            combo.currentIndexChanged.connect(lambda _: update_mapping_button())
 
         def on_auto_map_toggled(checked: bool):
             set_manual_mapping_enabled(not checked)
             if checked:
                 auto_map_languages()
+            update_mapping_button()
+
+        for combo in mappings.values():
+            combo.currentIndexChanged.connect(lambda _: update_mapping_button())
 
         auto_map_check.toggled.connect(on_auto_map_toggled)
         manual_map_button.clicked.connect(auto_map_languages)
@@ -412,26 +493,6 @@ class ImportModule:
             auto_map_languages()
 
         update_mapping_button()
-
-        # === Dialog Buttons ===
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-
-        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
-        ok_button.setMinimumSize(60, 30)
-        ok_button.setMaximumSize(160, 35)
-        ok_button.setText(ftr("import-button"))
-
-        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        cancel_button.setMinimumSize(60, 30)
-        cancel_button.setMaximumSize(160, 35)
-        cancel_button.setText(ftr("cancel-button"))
-
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
-
-        outer_layout.addWidget(button_box)
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return None
@@ -455,7 +516,7 @@ class ImportModule:
 
         return config
 
-    def _import_data(self, csv_data: list[dict], config: ImportConfig, file_name: str) -> dict:
+    def _import_data(self, csv_data: list[dict], config: ImportConfig, file_path: Path):
         model = self.mw.custom_table.table_model
         terms = manager.get_terms()
         languages = manager.get_languages()
@@ -537,7 +598,7 @@ class ImportModule:
 
             if progress.wasCanceled():
                 canceled = True
-                self.mw.status_bar_message(("importing-file-canceled", {"file_name": file_name}))
+                self.mw.status_bar_message(("importing-file-canceled", {"file_name": file_path.name}))
                 break
 
             try:
@@ -645,7 +706,10 @@ class ImportModule:
 
                     old_translation = manager.get_translation(row_index, lang_idx)
 
-                    if normalise(old_translation) != normalise(new_translation):
+                    old_normalised = normalise(old_translation)
+                    new_normalised = normalise(new_translation)
+
+                    if old_normalised != new_normalised:
                         changes.append({
                             "type": "translation",
                             "row": row_index,

@@ -19,17 +19,25 @@ def pathfind(relative: str):
     return str(base / relative)
 
 
-def check_language(name: str, code: str, flags: "Ldf", langs: dict | list):
-    restricted_fields = ["key", "type", "desc"]
+def check_language(name: str, code: str | None, flags: "Ldf", langs: list[dict]):
+    restricted_fields = {"key", "type", "desc"}
 
-    if not name or not flags:
+    if not name or flags is None:
         return "warning", "warning-invalid-language"
 
-    if name.lower() in restricted_fields or code.lower() in restricted_fields:
+    if name.lower() in restricted_fields:
         return "warning", "warning-reserved-names"
 
-    if name in langs or code in langs:
-        return "warning", ("warning-language-exists", {"language": f"{name} [{code}]"})
+    if code and code.lower() in restricted_fields:
+        return "warning", "warning-reserved-codes"
+
+    lang_display = f"{name} [{code}]" if code else name
+
+    for lang in langs:
+        name_match = lang["name"].lower() == name.lower()
+        code_match = code and lang.get("code", "").lower() == code.lower()
+        if name_match or code_match:
+            return "warning", ("warning-language-exists", {"language": lang_display})
 
     return None, None
 

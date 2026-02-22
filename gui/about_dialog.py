@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QMargins
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QDialog, QVBoxLayout, QPushButton
 
@@ -16,12 +16,13 @@ class About(QDialog):
             })
         ])
 
-        self.setFixedSize(350, 350)
+        self.setFixedSize(350, 400)
         self.setWindowTitle(self.ts["about-app"])
         self.setWindowFlags(
             Qt.WindowType.Window
             | Qt.WindowType.CustomizeWindowHint
             | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowMinimizeButtonHint
             | Qt.WindowType.WindowCloseButtonHint
         )
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
