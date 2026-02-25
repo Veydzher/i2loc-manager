@@ -239,6 +239,13 @@ class ImportModule:
         dialog = QDialog(self.mw)
         dialog.setWindowTitle(ftr("import-translations-title"))
         dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dialog.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
         dialog.setMinimumSize(600, 300)
         dialog.setMaximumSize(650, 700)
 

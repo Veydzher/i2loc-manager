@@ -19,16 +19,15 @@ from gui.helpers import (
 from gui.import_module import ImportModule
 from gui.langs_manage import LanguageManager
 from gui.updater import UpdateManager
+from setup import TITLE, VERSION
 from utils.app_config import app_cfg
 from utils.app_locales import fluent, ftr
 from utils.enums import FileExtension as Fe
 from utils.helpers import pathfind
 from utils.manager import manager
 
-class I2ManagerUI(QMainWindow):
-    TITLE = "I2 Localization Manager"
-    VERSION = "1.1.5"
 
+class I2ManagerUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config_actions = None
@@ -40,7 +39,7 @@ class I2ManagerUI(QMainWindow):
 
         self.setAcceptDrops(True)
         self.setMinimumSize(900, 600)
-        self.setWindowTitle(self.TITLE)
+        self.setWindowTitle(TITLE)
         self.setWindowIcon(QIcon(pathfind("assets\\icon.ico")))
         set_window_size(self)
 
@@ -49,11 +48,10 @@ class I2ManagerUI(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.central_widget.setLayout(self.main_layout)
 
-        self.update_manager = UpdateManager(self, self.VERSION)
+        self.update_manager = UpdateManager(self, VERSION)
 
         self._refresh_ui()
 
-        self.update_manager.check_for_pending_update()
         if app_cfg.get_config("update.check_updates_on_startup", True):
             self.update_manager.check_for_updates(True)
 
@@ -433,7 +431,7 @@ class I2ManagerUI(QMainWindow):
                 return
 
         self.temp_thread = QThread()
-        self.worker = FileWorker(str(path))
+        self.worker = FileWorker(path)
         self.worker.moveToThread(self.temp_thread)
 
         self.temp_thread.started.connect(self.worker.open)
@@ -612,7 +610,8 @@ class I2ManagerUI(QMainWindow):
     def _toggle_startup_updates(checked: bool):
         app_cfg.set_config("update.check_updates_on_startup", checked)
 
-    def _set_theme_mode(self, theme: str):
+    @staticmethod
+    def _set_theme_mode(theme: str):
         try:
             application = QApplication.instance()
             application.setStyle(QStyleFactory.create(theme))

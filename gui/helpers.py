@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QObject, Signal, QPropertyAnimation, QEasingCurve
@@ -16,7 +17,7 @@ from utils.manager import manager
 class FileWorker(QObject):
     finished = Signal(str, object)
 
-    def __init__(self, file_path: str = ""):
+    def __init__(self, file_path: str | Path):
         super().__init__()
         self.file_path = file_path
 

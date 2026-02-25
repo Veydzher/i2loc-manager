@@ -31,7 +31,8 @@ def _is_newer_version(latest: str, current: str) -> bool:
 
 
 class UpdateChecker(QThread):
-    update_available = Signal(dict)  # {version, download_url, changelog}
+    update_available = Signal(dict)
+    pending_update = Signal(dict)
     no_update = Signal()
     error = Signal(str)
 
@@ -45,6 +46,11 @@ class UpdateChecker(QThread):
         self.repo = parts[-1]
 
     def run(self):
+        pending = app_cfg.get_config("update.pending_update")
+        if pending and Path(pending.get("file_path", "")).exists():
+            self.pending_update.emit(pending)
+            return
+
         try:
             api_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/releases/latest"
 
@@ -62,14 +68,13 @@ class UpdateChecker(QThread):
                         break
 
                 if not download_url:
-                    # Fallback to source code zip
-                    download_url = release_data.get("zipball_url")
+                    print("[UPDATE] Failed to get download url!")
 
                 self.update_available.emit({
                     "version": latest_version,
                     "download_url": download_url,
-                    "changelog": release_data.get("body", "No changelog available"),
-                    "release_name": release_data.get("name", f"Version {latest_version}")
+                    "changelog": release_data.get("body", ftr("no-changelog-available")),
+                    "release_name": release_data.get("name", ftr("version-label", {"version": latest_version}))
                 })
             else:
                 self.no_update.emit()
@@ -164,7 +169,7 @@ class UpdateDialog(QDialog):
         header_layout.addLayout(title_container)
 
         version_container = QHBoxLayout()
-        version_badge = QLabel(f"Version {self.update_info['version']}")
+        version_badge = QLabel(ftr("version-label", {"version": self.update_info["version"]}))
         version_font = version_badge.font()
         version_font.setBold(True)
         version_badge.setFont(version_font)
@@ -256,7 +261,7 @@ class UpdateDialog(QDialog):
         self.progress_container.show()
         self.status_label.setText(ftr("downloading-update"))
 
-        temp_dir = Path.cwd() / "temp_update"
+        temp_dir = Path.cwd() / "temp"
         temp_dir.mkdir(exist_ok=True)
 
         download_path = temp_dir / f"update_{self.update_info['version']}.zip"
@@ -295,7 +300,6 @@ class UpdateDialog(QDialog):
         install_button.setDefault(True)
         install_button.setMinimumWidth(120)
 
-        # Insert install button
         button_layout = self.layout().itemAt(self.layout().count() - 1).layout()
         button_layout.insertWidget(button_layout.count() - 1, install_button)
 
@@ -308,8 +312,9 @@ class UpdateDialog(QDialog):
         self.progress_bar.setValue(0)
 
     def _install_update(self):
+        self.setDisabled(True)
         try:
-            extract_dir = Path.cwd() / "temp_update" / "extracted"
+            extract_dir = Path.cwd() / "temp" / "extracted"
             extract_dir.mkdir(exist_ok=True)
 
             self.status_label.setText(ftr("installing-update"))
@@ -324,8 +329,9 @@ class UpdateDialog(QDialog):
             else:
                 subprocess.Popen(["sh", update_script])
 
-            sys.exit(0)
+            app_cfg.set_config("update.pending_update", None)
 
+            sys.exit(0)
         except Exception as e:
             message_box(self, "error", ("error-install-failed", {"error": str(e)}))
 
@@ -345,10 +351,8 @@ class UpdateDialog(QDialog):
                 timeout /t 3 /nobreak >nul
             
                 rem Copy all files from extracted directory
-                for /d %%D in ("{source_dir}\\*") do (
-                    xcopy "%%D" "{app_dir}" /E /H /C /I /Y /Q >nul 2>&1
-                )
-                xcopy "{source_dir}" "{app_dir}" /E /H /C /I /Y /Q >nul 2>&1
+                rem robocopy "{source_dir}" "{app_dir}" /E /NFL /NDL /NJH /NJS /NC /NS /NP >nul 2>&1
+                xcopy "{source_dir}\\*" "{app_dir}" /E /H /C /I /Y /Q >nul 2>&1
             
                 echo Update complete!
                 timeout /t 1 /nobreak >nul
@@ -357,16 +361,10 @@ class UpdateDialog(QDialog):
                 cd /d "{app_dir}"
             
                 rem Try to find and run the main executable or script
-                if exist "i2-localization-manager.exe" (
-                    start "" "i2-localization-manager.exe"
+                if exist "I2-Localization-Manager.exe" (
+                    start "" "I2-Localization-Manager.exe"
                 ) else if exist "main.exe" (
                     start "" "main.exe"
-                ) else if exist "i2loc_manager.py" (
-                    rem Use pythonw to avoid console window
-                    start "" pythonw.exe "i2loc_manager.py"
-                ) else if exist "i2loc_manager.pyw" (
-                    start "" pythonw.exe "i2loc_manager.pyw"
-                )
             
                 rem Clean up temp directory
                 timeout /t 2 /nobreak >nul
@@ -391,14 +389,12 @@ class UpdateDialog(QDialog):
                 cd "{app_dir}"
             
                 # Find and run the executable
-                if [ -f "./i2-localization-manager" ]; then
-                    chmod +x "./i2-localization-manager"
-                    nohup "./i2-localization-manager" >/dev/null 2>&1 &
+                if [ -f "./I2-Localization-Manager" ]; then
+                    chmod +x "./I2-Localization-Manager"
+                    nohup "./I2-Localization-Manager" >/dev/null 2>&1 &
                 elif [ -f "./main" ]; then
                     chmod +x "./main"
                     nohup "./main" >/dev/null 2>&1 &
-                elif [ -f "./i2loc_manager.py" ]; then
-                    nohup python3 "./i2loc_manager.py" >/dev/null 2>&1 &
                 fi
             
                 # Clean up
@@ -431,6 +427,7 @@ class UpdateManager:
 
         self.checker_thread = UpdateChecker(self.current_version)
         self.checker_thread.update_available.connect(self._on_update_available)
+        self.checker_thread.pending_update.connect(self._on_pending_update)
         self.checker_thread.no_update.connect(lambda: self._on_no_update(silent))
         self.checker_thread.error.connect(lambda err: self._on_error(err, silent))
         self.checker_thread.start()
@@ -440,27 +437,9 @@ class UpdateManager:
         dialog = UpdateDialog(self.parent, update_info)
         dialog.exec()
 
-    def _on_no_update(self, silent: bool):
+    def _on_pending_update(self, pending: dict):
         self.parent.status_bar_message()
-        if not silent:
-            message_box(self.parent, "information", "info-no-updates-available")
-
-    def _on_error(self, error_msg: str, silent: bool):
-        self.parent.status_bar_message()
-        if not silent:
-            message_box(self.parent, "error", ("error-check-updates-failed", {"error": error_msg}))
-
-    def check_for_pending_update(self):
-        pending = app_cfg.get_config("update.pending_update")
-        if not pending:
-            return
-
-        file_path = Path(pending.get("file_path", ""))
-        version = pending.get("version", "")
-
-        if not file_path.exists():
-            app_cfg.set_config("update.pending_update", None)
-            return
+        version = pending.get("version", "UNKNOWN")
 
         reply = message_box(
             self.parent,
@@ -474,7 +453,7 @@ class UpdateManager:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self._install_pending_update(file_path)
+            self._install_pending_update(Path(pending["file_path"]))
         else:
             delete_reply = message_box(
                 self.parent,
@@ -490,9 +469,19 @@ class UpdateManager:
             if delete_reply == QMessageBox.StandardButton.Yes:
                 self._cleanup_pending_update()
 
+    def _on_no_update(self, silent: bool):
+        self.parent.status_bar_message()
+        if not silent:
+            message_box(self.parent, "information", "info-no-updates-available")
+
+    def _on_error(self, error_msg: str, silent: bool):
+        self.parent.status_bar_message()
+        if not silent:
+            message_box(self.parent, "error", ("error-check-updates-failed", {"error": error_msg}))
+
     def _install_pending_update(self, file_path: Path):
         try:
-            extract_dir = Path.cwd() / "temp_update" / "extracted"
+            extract_dir = Path.cwd() / "temp" / "extracted"
             extract_dir.mkdir(parents=True, exist_ok=True)
 
             self.parent.status_bar_message("installing-update")
@@ -522,7 +511,7 @@ class UpdateManager:
                     file_path.unlink()
 
                     temp_dir = file_path.parent
-                    if temp_dir.exists() and temp_dir.name == "temp_update":
+                    if temp_dir.exists() and temp_dir.name == "temp":
                         shutil.rmtree(temp_dir, ignore_errors=True)
                 except (PermissionError, FileNotFoundError, OSError, IsADirectoryError) as e:
                     raise Exception("Error while processing the file: ", str(e))

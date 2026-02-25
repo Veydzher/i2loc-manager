@@ -3,13 +3,14 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QDialog, QVBoxLayout, QPushButton
 
 from utils.app_locales import fluent
+from setup import TITLE, VERSION
 
 
 class About(QDialog):
     def __init__(self, mw):
         super().__init__(mw)
         self.ts = fluent.tr_batch([
-            "about-app", ("about-app-version", {"version": mw.VERSION}), "close-button",
+            "about-app", ("about-app-version", {"version": VERSION}), "close-button",
             ("about-app-desc", {
                 "I2Localization": "<a href=http://inter-illusion.com/tools/i2-localization>I2 Localization</a>",
                 "UABEA": "<a href=https://github.com/nesrak1/UABEA>UABEA</a>"
@@ -33,11 +34,17 @@ class About(QDialog):
         icon_pixmap = QIcon("assets/icon.ico").pixmap(128, 128)
         icon_label.setPixmap(icon_pixmap)
 
-        app_name = QLabel(f"<b>{mw.TITLE}</b>")
+        app_name = QLabel(f"<b>{TITLE}</b>")
         app_version = QLabel(self.ts["about-app-version"])
 
         app_author = QLabel(
             "© 2026 <a href=https://github.com/Veydzher>veydzh3r</a>",
+            openExternalLinks=True,
+            textInteractionFlags=Qt.TextInteractionFlag.TextBrowserInteraction,
+        )
+
+        app_github = QLabel(
+            "<a href=https://github.com/Veydzher/i2loc-manager>GitHub</a>",
             openExternalLinks=True,
             textInteractionFlags=Qt.TextInteractionFlag.TextBrowserInteraction,
         )
@@ -58,6 +65,7 @@ class About(QDialog):
         layout.addWidget(app_name, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(app_author, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(app_version, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(app_github, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addSpacing(20)
         layout.addWidget(app_description)
         layout.addSpacing(40)
