@@ -5,7 +5,7 @@
     <br><br>
     A lightweight tool for managing <a href="http://inter-illusion.com/tools/i2-localization/">I2 Localization</a> assets exported via <a href="https://github.com/nesrak1/UABEA">UABEA</a> as dump files with ease.
     <br><br>
-    <a href="https://github.com/Veydzher/i2loc-manager/releases/latest/download/i2-localization-manager.zip"><img alt="Download Windows Build" src="https://img.shields.io/badge/windows-download-first"></a>
+    <a href="https://github.com/Veydzher/i2loc-manager/releases/latest/download/I2_Localization_Manager.zip"><img alt="Download Windows Build" src="https://img.shields.io/badge/windows-download-first"></a>
     <a href="https://github.com/Veydzher/i2loc-manager/releases"><img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/Veydzher/i2loc-manager/total"></a>
 </p>
 
