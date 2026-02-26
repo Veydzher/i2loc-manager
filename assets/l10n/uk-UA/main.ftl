@@ -11,6 +11,8 @@ discard-button = Відхилити
 all-languages = Усі мови
 term-count-label = Усього термінів: {$count}
 report-dev = Просимо опублікувати цю помилку та прикріпити файл, який ви намагалися відкрити, у вкладці {$link}.
+advanced-title = Розширено
+default-label = (типово)
 
 
 ## About popup
@@ -72,7 +74,7 @@ export-translations-tooltip = Експортувати переклади до �
 import-translations-button = Імпортувати переклади
 import-translations-tooltip = Імпортувати переклади з файлу CSV/TSV.
 manage-languages-button = Керувати мовами
-manage-languages-tooltip = Керувати мовами у таблиці.
+manage-languages-tooltip = Керувати мовами в таблиці.
 
 
 ## Popup titles
@@ -87,14 +89,12 @@ warning-file-not-found = Файлу не існує: {$file_path}.
 error-invalid-file = Недійсний файл.
 error-invalid-extension = Недійсне розширення файлу.
 error-no-terms-language = Не знайдено терміни/мови!
-error-unknown-import-type = Невідомий тип імпортування: {$type}.
 
 error-save-failed = Помилка збереження: {$error}.
 error-invalid-data = Недійсний формат даних: {$error}.
 error-file-access = Помилка доступу до файлу: {$error}.
 
 warning-no-languages = У файлі не визначено жодної мови.
-warning-invalid-language-format = Недійсний формат мови.
 warning-language-exists = Мова «{$language}» уже існує!
 
 question-save-file-open = Бажаєте зберегти зміни до файлу?
@@ -125,10 +125,14 @@ saved-file = Файл збережено: {$file_path}
 update-available-title = Доступне оновлення
 update-available-message = Доступний новий випуск: {$name}
 changelog-label = 📝 Список змін:
+version-label = Версія {$version}
+no-changelog-available = Список змін недоступний
 download-update-button = Завантажити
 skip-update-button = Пропустити
 install-now-button = Установити
 install-later-button = Пізніше
+question-install-pending-update = Попереднє завантажене оновлення (версія {$version}) готове до встановлення. Бажаєте встановити зараз?
+question-delete-pending-update = Бажаєте видалити завантажений файл оновлення?
 installing-update = 📦 Установлення оновлення...
 checking-for-updates = Перевірка на наявність оновлення...
 downloading-update = ⏳ Завантаження оновлення...
@@ -148,9 +152,28 @@ select-all-button = Вибрати всі
 deselect-all-button = Зняти всі
 export-button = Експортувати
 export-button-disabled = Оберіть принаймні одну мову.
+export-button-no-custom-delimiter = Введіть власний роздільник.
+
+export-advanced-options-title = Розширені параметри CSV
+export-delimiter-label = Роздільник:
+export-delimiter-comma = Кома
+export-delimiter-tab = Табуляція
+export-delimiter-custom = Власний...
+
+export-quoting-label = Взяття в лапки:
+export-quoting-minimal = Мінімальне
+export-quoting-all-fields = Усі поля
+export-quoting-non-numeric = Нечислові поля
+export-quoting-none = Без лапок
+
+export-quote-character-label = Символ лапок:
+export-escape-character-label = Символ екранування:
+export-escape-character-optional = Відсутній (необов’язково)
+export-escape-character-required = Обов’язковий для «Без лапок»
+export-line-ending-label = Послідовність завершення рядка:
 
 # Status bar message
-exporting-language-data = Експортування даних з файлу {$file_name}...
+exporting-file-data = Експортування даних з {$file_name}...
 
 ## Helper text
 and-text = {$langs} та {$last_lang}.
@@ -177,16 +200,59 @@ info-success-export = Успішно експортовано {$translation_num 
 ## Import module
 
 import-translations-title = Імпортувати переклади
+
+import-mode-title = Режим імпорту
+import-mode-merge = Об’єднання
+import-mode-merge-desc = Оновити наявні терміни та додати нові.
+import-mode-replace = Заміна
+import-mode-replace-desc = Видалити весь наявний вміст та імпортувати все з файлу.
+import-mode-add-new = Лише нові
+import-mode-add-new-desc = Імпортувати лише нові терміни та мови, пропускаючи вже наявні.
+import-mode-update-only = Лише оновлення
+import-mode-update-only-desc = Оновити лише наявний вміст. Нові терміни та мови буде проігноровано.
+
+import-options-title = Параметри імпорту
+import-create-terms = Створювати відсутні терміни
+import-create-terms-tooltip = Створювати терміни, яких немає в поточному вмісті.
+import-update-types = Оновлювати типи термінів
+import-update-types-tooltip = Перезаписувати тип кожного терміна в поточному вмісті імпортованим значенням.
+import-update-descriptions = Оновлювати описи термінів
+import-update-descriptions-tooltip = Перезаписувати опис кожного терміна в поточному вмісті імпортованим значенням.
+import-skip-empty = Пропускати порожні переклади
+import-skip-empty-tooltip = Ігнорувати комірки з порожнім значенням.
+
 import-select-languages = Оберіть мови, які бажаєте імпортувати:
 imported-language-label = <b>Імпортована мова</b>
 import-to-language-label = <b>Цільова мова</b>
-auto-map-button = Авто. впорядкувати
-clear-mappings-button = Очистити всі
 do-not-import-option = Не імпортувати
+create-new-lang-option = Створити нову мову
+
+import-auto-map-toggle = Автоматично впорядковувати мови
+import-auto-map-button = Авто. впорядкувати
+import-clear-mappings-button = Прибрати всі
 import-button = Імпортувати
 import-button-disabled = Оберіть принаймні одну цільову мову.
-importing-progress-label = Перевірка перекладів на імпортування...
-importing-progress-title = Імпортування
+
+import-progress-label = Перевірка перекладів для імпорту...
+import-progress-title = Імпортування
+
+import-term-not-found = Рядок {$idx}: термін «{$term_key}» не знайдено (пропущено)
+import-invalid-term-type = Рядок {$idx}: недійсний тип «{$term_type}», заміна на «Text»
+import-general-error = Рядок {$idx}: {$error}
+
+import-summary-title = Підсумок імпорту
+import-from-file-title = Імпортування з {$file_name}
+import-total-changes = ✓ Усього змін: {$count}
+import-terms-created =    • Створено термінів: {$count}
+import-terms-updated =    • Оброблено термінів: {$count}
+import-languages-created =    • Створено мов: {$count}
+import-translations-added =    • Додано перекладів: {$count}
+import-translations-updated =    • Оновлено перекладів: {$count}
+import-term-types-updated =    • Оновлено типи термінів: {$count}
+import-term-descs-updated =    • Оновлено описи термінів: {$count}
+import-skipped-empty =    • Пропущено порожні переклади: {$count}
+import-no-changes-made = Жодних змін.
+import-errors-title = ⚠ Помилки: {$count}
 
 # Status bar message
 importing-file-data = Імпортування даних з файлу {$file_name}...
@@ -244,5 +310,6 @@ confirm-language-removal = Ви дійсно бажаєте вилучити м�
     Цю дію не можна буде скасувати.
 warning-invalid-language = Будь ласка, введіть назву мови та її код.
 warning-duplicate-code = Мова з кодом «{$code}» уже існує.
-warning-reserved-names = Введене вами назва або код зарезервовано. Будь ласка, введіть інше.
+warning-reserved-names = Введене вами назва зарезервована. Будь ласка, введіть іншу.
+warning-reserved-codes = Введений вами код зарезервований. Будь ласка, введіть інший.
 warning-invalid-code-letters = Код мови повинен містити лише літери ASCII.
