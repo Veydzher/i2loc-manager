@@ -12,7 +12,7 @@ if __name__ == "__main__":
         Executable(
         script="main.py",
             base=base,
-            target_name=f"{TITLE.replace(" ", "-")}-{VERSION}",
+            target_name=TITLE.replace(" ", "-"),
             copyright="Copyright (C) 2026 veydzh3r",
             icon="assets/icon.ico",
             shortcut_name=TITLE,

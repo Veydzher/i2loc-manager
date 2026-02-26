@@ -342,36 +342,30 @@ class UpdateDialog(QDialog):
         if sys.platform == "win32":
             script_path = app_dir / "update.bat"
 
-            script_content = f"""
-                @echo off
-                chcp 65001 >nul
-                title Updating Application
-                echo.
-                echo Installing update...
-                timeout /t 3 /nobreak >nul
-            
-                rem Copy all files from extracted directory
-                rem robocopy "{source_dir}" "{app_dir}" /E /NFL /NDL /NJH /NJS /NC /NS /NP >nul 2>&1
-                xcopy "{source_dir}\\*" "{app_dir}" /E /H /C /I /Y /Q >nul 2>&1
-            
-                echo Update complete!
-                timeout /t 1 /nobreak >nul
-            
-                rem Change to app directory and start the application
-                cd /d "{app_dir}"
-            
-                rem Try to find and run the main executable or script
-                if exist "I2-Localization-Manager.exe" (
-                    start "" "I2-Localization-Manager.exe"
-                ) else if exist "main.exe" (
-                    start "" "main.exe"
-            
-                rem Clean up temp directory
-                timeout /t 2 /nobreak >nul
-                rd /s /q "{source_dir.parent}" >nul 2>&1
-            
-                rem Delete this script
-                del "%~f0" >nul 2>&1
+            script_content = f"""@echo off
+            chcp 65001 >nul
+            title Updating Application
+            echo.
+            echo Installing update...
+            timeout /t 3 /nobreak >nul
+
+            xcopy "{source_dir}\\*" "{app_dir}" /E /H /C /I /Y /Q >nul 2>&1
+
+            echo Update complete!
+            timeout /t 1 /nobreak >nul
+
+            cd /d "{app_dir}"
+
+            if exist "I2-Localization-Manager.exe" (
+                start "" "I2-Localization-Manager.exe"
+            ) else if exist "main.exe" (
+                start "" "main.exe"
+            )
+
+            timeout /t 2 /nobreak >nul
+            rd /s /q "{source_dir.parent}" >nul 2>&1
+
+            del "%~f0" >nul 2>&1
             """
         else:
             script_path = app_dir / "update.sh"
