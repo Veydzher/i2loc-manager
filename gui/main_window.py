@@ -431,7 +431,7 @@ class I2ManagerUI(QMainWindow):
                 return
 
         self.temp_thread = QThread()
-        self.worker = FileWorker(path)
+        self.worker = FileWorker(str(path))
         self.worker.moveToThread(self.temp_thread)
 
         self.temp_thread.started.connect(self.worker.open)
