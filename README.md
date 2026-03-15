@@ -68,7 +68,7 @@ source .venv/bin/activate
 
 4. **Install dependencies:**
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 5. **Run the program:**
@@ -80,6 +80,7 @@ python main.py
 - **PySide6** - GUI Framework
 - **fluent** - Localization Framework
 - **requests** - HTTP Requests
+- **cx_Freeze** - Distributable Program Packager
 
 ## License
 
